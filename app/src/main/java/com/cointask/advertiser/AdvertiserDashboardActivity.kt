@@ -815,7 +815,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                         📈 Campaigns: ${campaignList.size}
                         - Active: ${campaignList.count { it.status == CampaignStatus.ACTIVE }}
                         - Paused: ${campaignList.count { it.status == CampaignStatus.PAUSED }}
-                        - Completed: ${campaignList.count { it.status == CampaignStatus.COMPLETED }}
+                        - Completed: ${campaignList.count { it.status == CampaignStatus.ENDED }}
                     """.trimIndent()
 
                     AlertDialog.Builder(this@AdvertiserDashboardActivity)
