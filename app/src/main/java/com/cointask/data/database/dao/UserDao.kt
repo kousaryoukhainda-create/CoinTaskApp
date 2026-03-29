@@ -48,4 +48,13 @@ interface UserDao {
     
     @Query("UPDATE users SET suspensionCount = suspensionCount + 1 WHERE id = :userId")
     suspend fun incrementSuspensionCount(userId: Int)
+
+    @Delete
+    suspend fun deleteUser(user: User)
+
+    @Query("SELECT * FROM users WHERE role = :role")
+    suspend fun getUsersByRole(role: UserRole): List<User>
+
+    @Query("SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND isActive = 1")
+    suspend fun getActiveAdminCount(): Int
 }

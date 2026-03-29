@@ -3,26 +3,12 @@ package com.cointask.utils
 import android.content.Context
 import com.cointask.data.models.ActivityLog
 import com.cointask.data.models.Campaign
-import com.cointask.data.models.CampaignStatus
 import com.cointask.data.models.Task
-import com.cointask.data.models.TaskStatus
-import com.cointask.data.models.TaskType
 import com.cointask.data.models.Transaction
-import com.cointask.data.models.TransactionType
 import com.cointask.data.models.User
-import com.cointask.data.models.UserRole
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.io.IOException
-
-data class SampleUser(
-    val email: String,
-    val password: String,
-    val fullName: String,
-    val role: String,
-    val coins: Int,
-    val isVerified: Boolean
-)
 
 data class SampleTask(
     val title: String,
@@ -65,10 +51,6 @@ object SampleDataLoader {
 
     private val gson = Gson()
 
-    fun loadUsers(context: Context): List<SampleUser> {
-        return loadFromAssets(context, "sample_users.json", object : TypeToken<List<SampleUser>>() {}.type)
-    }
-
     fun loadTasks(context: Context): List<SampleTask> {
         return loadFromAssets(context, "sample_tasks.json", object : TypeToken<List<SampleTask>>() {}.type)
     }
@@ -97,28 +79,15 @@ object SampleDataLoader {
     }
 }
 
-// Extension functions to convert sample data to domain models
-
-fun SampleUser.toUser(passwordHash: String): User {
-    return User(
-        email = this.email,
-        password = passwordHash,
-        fullName = this.fullName,
-        role = UserRole.valueOf(this.role),
-        coins = this.coins,
-        isVerified = this.isVerified
-    )
-}
-
 fun SampleTask.toTask(currentTime: Long): Task {
     return Task(
         title = this.title,
         description = this.description,
         rewardCoins = this.rewardCoins,
         advertiserId = this.advertiserId,
-        taskType = TaskType.valueOf(this.taskType),
+        taskType = com.cointask.data.models.TaskType.valueOf(this.taskType),
         totalCapacity = this.totalCapacity,
-        status = TaskStatus.valueOf(this.status),
+        status = com.cointask.data.models.TaskStatus.valueOf(this.status),
         expiresAt = currentTime + this.expiresAtOffset
     )
 }
@@ -132,7 +101,7 @@ fun SampleCampaign.toCampaign(currentTime: Long): Campaign {
         spentAmount = this.spent,
         totalTasks = this.targetImpressions / 100,
         completedTasks = this.currentImpressions / 100,
-        status = if (this.isActive) CampaignStatus.ACTIVE else CampaignStatus.PENDING,
+        status = if (this.isActive) com.cointask.data.models.CampaignStatus.ACTIVE else com.cointask.data.models.CampaignStatus.PENDING,
         startDate = currentTime + this.startDateOffset,
         endDate = currentTime + this.endDateOffset,
         costPerTask = if (this.targetImpressions > 0) this.budget / (this.targetImpressions / 100) else 0
@@ -144,11 +113,11 @@ fun SampleTransaction.toTransaction(): Transaction {
         userId = this.userId,
         amount = this.amount,
         type = when (this.type) {
-            "DEPOSIT" -> TransactionType.BONUS
-            "WITHDRAWAL" -> TransactionType.WITHDRAWAL
-            "REWARD" -> TransactionType.EARNED_FROM_TASK
-            "CAMPAIGN_SPEND" -> TransactionType.CAMPAIGN_PAYMENT
-            else -> TransactionType.BONUS
+            "DEPOSIT" -> com.cointask.data.models.TransactionType.BONUS
+            "WITHDRAWAL" -> com.cointask.data.models.TransactionType.WITHDRAWAL
+            "REWARD" -> com.cointask.data.models.TransactionType.EARNED_FROM_TASK
+            "CAMPAIGN_SPEND" -> com.cointask.data.models.TransactionType.CAMPAIGN_PAYMENT
+            else -> com.cointask.data.models.TransactionType.BONUS
         },
         description = this.description
     )

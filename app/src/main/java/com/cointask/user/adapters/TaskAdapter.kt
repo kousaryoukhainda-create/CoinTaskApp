@@ -12,42 +12,52 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class TaskAdapter(
-    private val onTaskClick: (Task) -> Unit
+    private val context: android.content.Context
 ) : ListAdapter<Task, TaskAdapter.TaskViewHolder>(TaskDiffCallback()) {
-    
+
+    private var taskClickListener: TaskClickListener? = null
+
+    interface TaskClickListener {
+        fun onTaskClick(task: Task)
+        fun onTaskComplete(task: Task)
+    }
+
+    fun setTaskClickListener(listener: TaskClickListener) {
+        taskClickListener = listener
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
         val binding = ItemTaskBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
         )
-        return TaskViewHolder(binding, onTaskClick)
+        return TaskViewHolder(binding)
     }
-    
+
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), taskClickListener)
     }
-    
+
     class TaskViewHolder(
-        private val binding: ItemTaskBinding,
-        private val onTaskClick: (Task) -> Unit
+        private val binding: ItemTaskBinding
     ) : RecyclerView.ViewHolder(binding.root) {
-        
-        fun bind(task: Task) {
+
+        fun bind(task: Task, listener: TaskClickListener?) {
             binding.apply {
                 tvTitle.text = task.title
                 tvDescription.text = task.description
                 tvReward.text = "+${task.rewardCoins} coins"
-                
+
                 val progress = (task.completedCount.toFloat() / task.totalCapacity * 100).toInt()
                 progressTask.progress = progress
                 tvProgress.text = "$progress% completed (${task.completedCount}/${task.totalCapacity})"
-                
+
                 val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
                 tvExpires.text = "Expires: ${dateFormat.format(Date(task.expiresAt))}"
-                
+
                 setTaskIcon(task.taskType)
-                
-                root.setOnClickListener { onTaskClick(task) }
-                
+
+                root.setOnClickListener { listener?.onTaskClick(task) }
+
                 // Animation
                 root.alpha = 0f
                 root.translationY = 50f
@@ -59,7 +69,7 @@ class TaskAdapter(
                     .start()
             }
         }
-        
+
         private fun setTaskIcon(type: TaskType) {
             val icon = when (type) {
                 TaskType.WATCH_VIDEO -> "▶️"
@@ -73,7 +83,7 @@ class TaskAdapter(
             binding.ivTaskIcon.text = icon
         }
     }
-    
+
     class TaskDiffCallback : DiffUtil.ItemCallback<Task>() {
         override fun areItemsTheSame(oldItem: Task, newItem: Task) = oldItem.id == newItem.id
         override fun areContentsTheSame(oldItem: Task, newItem: Task) = oldItem == newItem

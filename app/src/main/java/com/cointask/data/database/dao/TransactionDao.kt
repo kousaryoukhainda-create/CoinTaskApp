@@ -26,6 +26,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions")
     fun getAllTransactions(): Flow<List<Transaction>>
 
+    @Query("SELECT * FROM transactions")
+    suspend fun getAllTransactionsList(): List<Transaction>
+
     @Query("SELECT SUM(amount) FROM transactions WHERE userId = :userId AND type = 'EARNED_FROM_TASK' AND status = 'COMPLETED'")
     suspend fun getTotalEarnings(userId: Int): Int?
 

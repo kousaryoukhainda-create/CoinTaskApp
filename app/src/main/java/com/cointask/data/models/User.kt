@@ -25,5 +25,11 @@ data class User(
     val bankName: String? = null,
     val accountName: String? = null,
     val ipAddress: String? = null,
-    val deviceId: String? = null
+    val deviceId: String? = null,
+    // Advertiser payment details
+    val cnic: String? = null,
+    val accountTitle: String? = null,
+    val accountNumber: String? = null,
+    val transactionId: String? = null,
+    val paymentVerified: Boolean = false
 ) : Parcelable

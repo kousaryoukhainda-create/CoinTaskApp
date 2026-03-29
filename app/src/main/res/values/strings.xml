@@ -1,4 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CoinTask</string>
+    
+    <!-- Authentication -->
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="full_name">Full Name</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="dont_have_account">Don\'t have an account?</string>
+    <string name="already_have_account">Already have an account?</string>
+    
+    <!-- User Dashboard -->
+    <string name="welcome">Welcome</string>
+    <string name="your_coins">Your Coins</string>
+    <string name="level_progress">Level Progress</string>
+    <string name="withdraw">Withdraw</string>
+    <string name="history">History</string>
+    <string name="available_tasks">Available Tasks</string>
+    <string name="no_tasks_available">No tasks available at the moment.\nCheck back later!</string>
+    
+    <!-- Advertiser Dashboard -->
+    <string name="total_budget">Total Budget</string>
+    <string name="remaining_budget">Remaining Budget</string>
+    <string name="total_spent">Total Spent</string>
+    <string name="total_tasks">Total Tasks</string>
+    <string name="completed_tasks">Completed Tasks</string>
+    <string name="roi">ROI (Return on Investment)</string>
+    <string name="create_campaign">Create Campaign</string>
+    <string name="create_task">Create Task</string>
+    <string name="your_campaigns">Your Campaigns</string>
+    <string name="no_campaigns">No campaigns yet.\nCreate your first campaign!</string>
+    
+    <!-- Admin Panel -->
+    <string name="admin_panel">Admin Panel</string>
+    <string name="platform_overview">Platform Overview</string>
+    <string name="total_users">Total Users</string>
+    <string name="total_advertisers">Total Advertisers</string>
+    <string name="total_revenue">Total Revenue</string>
+    <string name="platform_commission">Platform Commission</string>
+    <string name="suspicious_activities">Suspicious Activities</string>
+    <string name="manage_users">Manage Users</string>
+    <string name="manage_tasks">Manage Tasks</string>
+    <string name="fraud_detection">Fraud Detection</string>
+    <string name="activity_logs">Activity Logs</string>
+    <string name="platform_settings">Platform Settings</string>
+    <string name="admin_security">Admin Security</string>
+    <string name="secret_key_verified">Secret Key Verified</string>
+    <string name="secret_key_required">Secret Key Required</string>
+    <string name="verify_secret_key">Verify Secret Key</string>
+    <string name="generate_secret_key">Generate Today\'s Secret Key</string>
+    
+    <!-- Common -->
+    <string name="logout">Logout</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
+    <string name="loading">Loading...</string>
+    <string name="error">Error</string>
+    <string name="success">Success</string>
+    <string name="confirm">Confirm</string>
+    <string name="close">Close</string>
+    <string name="refresh">Refresh</string>
+    <string name="filter">Filter</string>
+    <string name="search">Search</string>
+    
+    <!-- Task Types -->
+    <string name="task_type_watch_video">Watch Video</string>
+    <string name="task_type_visit_site">Visit Website</string>
+    <string name="task_type_like_content">Like Content</string>
+    <string name="task_type_share_post">Share Post</string>
+    <string name="task_type_follow_account">Follow Account</string>
+    <string name="task_type_comment">Comment</string>
+    <string name="task_type_survey">Survey</string>
+    
+    <!-- Messages -->
+    <string name="min_withdrawal">Minimum withdrawal: 1000 coins</string>
+    <string name="withdrawal_rate">Rate: 1000 coins = $1</string>
+    <string name="insufficient_balance">Insufficient balance!</string>
+    <string name="withdrawal_submitted">Withdrawal request submitted!</string>
+    <string name="task_completed">Task completed!</string>
+    <string name="already_completed">You\'ve already completed this task!</string>
+    <string name="invalid_credentials">Invalid credentials</string>
+    <string name="account_suspended">Account suspended. Contact support.</string>
+    <string name="welcome_back">Welcome back!</string>
 </resources>

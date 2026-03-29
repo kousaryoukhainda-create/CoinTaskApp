@@ -41,14 +41,18 @@ class LoginActivity : AppCompatActivity() {
         binding.btnLogin.setOnClickListener {
             val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString()
-            
+
             if (validateInputs(email, password)) {
                 performLogin(email, password)
             }
         }
-        
+
         binding.btnRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
+        }
+
+        binding.tvForgotPassword.setOnClickListener {
+            showForgotPasswordDialog()
         }
     }
     
@@ -69,18 +73,18 @@ class LoginActivity : AppCompatActivity() {
             val user = database.userDao().getUserByEmail(email)
 
             if (user != null && user.isActive) {
-                // Verify password using BCrypt
-                val passwordValid = PasswordUtils.verifyPassword(password, user.password)
-                
-                if (!passwordValid) {
-                    Toast.makeText(this@LoginActivity,
-                        "Invalid credentials", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                
                 if (user.isSuspended) {
                     Toast.makeText(this@LoginActivity,
                         "Account suspended. Contact support.", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+
+                // Verify password using BCrypt
+                val passwordValid = PasswordUtils.verifyPassword(password, user.password)
+
+                if (!passwordValid) {
+                    Toast.makeText(this@LoginActivity,
+                        "Invalid credentials", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
 
@@ -91,8 +95,13 @@ class LoginActivity : AppCompatActivity() {
                     "Welcome ${user.fullName}!", Toast.LENGTH_SHORT).show()
                 navigateBasedOnRole(user.role)
             } else {
-                Toast.makeText(this@LoginActivity,
-                    "Invalid credentials", Toast.LENGTH_SHORT).show()
+                if (user != null && !user.isActive) {
+                    Toast.makeText(this@LoginActivity,
+                        "Account is not active. Contact admin.", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@LoginActivity,
+                        "Invalid credentials", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -105,5 +114,119 @@ class LoginActivity : AppCompatActivity() {
         }
         startActivity(intent)
         finish()
+    }
+
+    private fun showForgotPasswordDialog() {
+        val emailInput = android.widget.EditText(this).apply {
+            hint = "Enter your email"
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Reset Password")
+            .setMessage("Enter your email address and we'll send you instructions to reset your password.\n\nNote: In this local version, you'll need to contact an admin to reset your password.")
+            .setView(emailInput)
+            .setPositiveButton("Send Reset Link") { _, _ ->
+                val email = emailInput.text.toString().trim()
+                if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    Toast.makeText(this@LoginActivity,
+                        "Please enter a valid email address", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                // Check if email exists
+                lifecycleScope.launch {
+                    val user = database.userDao().getUserByEmail(email)
+                    if (user != null) {
+                        // In a production app, this would send an email
+                        // For now, show a dialog with options
+                        showPasswordResetOptions(user)
+                    } else {
+                        Toast.makeText(this@LoginActivity,
+                            "No account found with this email", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showPasswordResetOptions(user: com.cointask.data.models.User) {
+        val options = arrayOf(
+            "Generate Temporary Password",
+            "Contact Admin for Reset",
+            "Security Question Reset"
+        )
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Password Reset Options")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> generateTempPassword(user)
+                    1 -> contactAdminReset(user)
+                    2 -> securityQuestionReset(user)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun generateTempPassword(user: com.cointask.data.models.User) {
+        // Generate a temporary password
+        val tempPassword = "Temp${(1000..9999).random()}"
+        val hashedPassword = PasswordUtils.hashPassword(tempPassword)
+
+        lifecycleScope.launch {
+            val updatedUser = user.copy(password = hashedPassword)
+            database.userDao().updateUser(updatedUser)
+
+            // Log the password reset
+            database.activityLogDao().insertLog(
+                com.cointask.data.models.ActivityLog(
+                    userId = user.id,
+                    action = "PASSWORD_RESET",
+                    details = "Password reset via temporary password generation"
+                )
+            )
+
+            androidx.appcompat.app.AlertDialog.Builder(this@LoginActivity)
+                .setTitle("Temporary Password Generated")
+                .setMessage("Your temporary password is:\n\n$tempPassword\n\nPlease login with this password and change it immediately from your profile settings.")
+                .setPositiveButton("OK", null)
+                .show()
+        }
+    }
+
+    private fun contactAdminReset(user: com.cointask.data.models.User) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Contact Admin")
+            .setMessage("To reset your password, please contact the system administrator.\n\nAdmin Email: admin@cointask.com\nSupport: support@cointask.com")
+            .setPositiveButton("OK", null)
+            .setNeutralButton("Copy Email") { _, _ ->
+                // In a real app, copy to clipboard
+                Toast.makeText(this@LoginActivity, "Email copied to clipboard", Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+
+    private fun securityQuestionReset(user: com.cointask.data.models.User) {
+        // In a production app, this would use security questions
+        // For now, show a message
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Security Questions")
+            .setMessage("Security questions feature coming soon.\n\nFor now, please use the temporary password option or contact admin.")
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    override fun onBackPressed() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Exit App")
+            .setMessage("Are you sure you want to exit CoinTask?")
+            .setPositiveButton("Exit") { _, _ ->
+                finishAffinity()
+            }
+            .setNegativeButton("Stay", null)
+            .show()
     }
 }

@@ -33,9 +33,9 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="8dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-        
+
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/et_password"
             android:layout_width="match_parent"
@@ -43,7 +43,19 @@
             android:hint="Password"
             android:inputType="textPassword" />
     </com.google.android.material.textfield.TextInputLayout>
-    
+
+    <TextView
+        android:id="@+id/tvForgotPassword"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:text="Forgot Password?"
+        android:textSize="14sp"
+        android:textColor="@color/primary"
+        android:layout_marginBottom="16dp"
+        android:clickable="true"
+        android:focusable="true" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_login"
         android:layout_width="match_parent"
@@ -58,12 +70,12 @@
         android:layout_height="56dp"
         android:text="Create New Account"
         style="@style/Widget.Material3.Button.OutlinedButton" />
-    
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="Demo Credentials:\nuser@example.com (any password)\nadmin@example.com (admin panel)\nadvertiser@example.com (advertiser)"
+        android:layout_marginTop="24dp"
+        android:text="🔒 Secure login with BCrypt encryption"
         android:textSize="12sp"
         android:textColor="@color/text_secondary"
         android:gravity="center" />

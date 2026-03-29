@@ -22,7 +22,17 @@ data class Task(
     val videoUrl: String? = null,
     val socialMediaLink: String? = null,
     val requiredActions: String = "", // JSON string
-    val verificationData: String = "" // JSON string
+    val verificationData: String = "", // JSON string
+    // Advertiser-defined task settings
+    val completionTimeSeconds: Int = 5, // Time required to complete task
+    val targetViews: Int = 0, // For view-based tasks
+    val targetLikes: Int = 0, // For like-based tasks
+    val targetShares: Int = 0, // For share-based tasks
+    val targetClicks: Int = 0, // For click-based tasks
+    val currentViews: Int = 0, // Tracking current progress
+    val currentLikes: Int = 0,
+    val currentShares: Int = 0,
+    val currentClicks: Int = 0
 )
 
 enum class TaskType {

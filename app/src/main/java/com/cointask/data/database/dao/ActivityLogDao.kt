@@ -23,4 +23,7 @@ interface ActivityLogDao {
     
     @Query("UPDATE activity_logs SET isSuspicious = true, fraudScore = :score WHERE id = :logId")
     suspend fun markAsSuspicious(logId: Int, score: Float = 0.5f)
+
+    @Query("SELECT * FROM activity_logs")
+    suspend fun getAllLogsList(): List<ActivityLog>
 }
