@@ -123,7 +123,7 @@ class UserDashboardActivity : AppCompatActivity() {
 
     private fun insertSampleTasks() {
         lifecycleScope.launch {
-            val existingTasks = database.taskDao().getAllTasks()
+            val existingTasks = database.taskDao().getAllTasksList()
             if (existingTasks.isEmpty()) {
                 val sampleTasks = listOf(
                     Task(
