@@ -3,10 +3,13 @@ package com.cointask.user
 import android.animation.ValueAnimator
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -402,6 +405,7 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     val date = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault()).format(Date(tx.timestamp))
                     val status = when (tx.status) {
                         TransactionStatus.PENDING -> "⏳"
+                        TransactionStatus.PROCESSING -> "🔄"
                         TransactionStatus.COMPLETED -> "✅"
                         TransactionStatus.FAILED -> "❌"
                         TransactionStatus.CANCELLED -> "🚫"
@@ -647,9 +651,9 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(50, 50, 50, 50)
-            addView(currentPasswordInput)
-            addView(newPasswordInput)
-            addView(confirmPasswordInput)
+            addView(currentPasswordInput as View)
+            addView(newPasswordInput as View)
+            addView(confirmPasswordInput as View)
         }
 
         AlertDialog.Builder(this)

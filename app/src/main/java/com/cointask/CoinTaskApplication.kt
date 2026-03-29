@@ -10,6 +10,7 @@ import com.cointask.data.models.UserRole
 import com.cointask.services.FraudDetectionService
 import com.cointask.utils.PasswordUtils
 import com.cointask.utils.SampleDataLoader
+import com.cointask.utils.toActivityLog
 import com.cointask.utils.toCampaign
 import com.cointask.utils.toTask
 import com.cointask.utils.toTransaction

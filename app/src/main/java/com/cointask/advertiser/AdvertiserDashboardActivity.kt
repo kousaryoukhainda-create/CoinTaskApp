@@ -13,6 +13,7 @@ import com.cointask.auth.LoginActivity
 import com.cointask.data.database.AppDatabase
 import com.cointask.data.models.*
 import com.cointask.databinding.ActivityAdvertiserDashboardBinding
+import com.cointask.utils.PasswordUtils
 import com.cointask.utils.PreferencesManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -125,19 +126,8 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
     }
 
     private fun showCampaignsInList(campaigns: List<Campaign>) {
-        val campaignNames = campaigns.map {
-            "${it.name} - 🪙${it.spentAmount}/🪙${it.budget} (${it.completedTasks}/${it.totalTasks} tasks) - ${it.status}"
-        }.toTypedArray()
-
-        // Create a simple list adapter
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, campaignNames)
-        
-        // If RecyclerView is available, use it; otherwise use ListView approach
-        try {
-            binding.rvCampaigns.adapter = adapter
-        } catch (e: Exception) {
-            // Fallback: show in dialog
-        }
+        // Campaigns are displayed in the RecyclerView via loadCampaigns()
+        // This method is kept for compatibility but no longer needed
     }
 
     private fun showCreateCampaignDialog() {
