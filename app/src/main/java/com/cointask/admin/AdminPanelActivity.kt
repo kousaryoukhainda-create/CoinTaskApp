@@ -69,7 +69,7 @@ class AdminPanelActivity : AppCompatActivity() {
             showAdvertiserPaymentsDialog()
         }
 
-        binding.btnSettings.setOnClickListener {
+        binding.btnAdminSettings.setOnClickListener {
             showAdminSettingsDialog()
         }
     }
