@@ -27,7 +27,3 @@ data class User(
     val ipAddress: String? = null,
     val deviceId: String? = null
 ) : Parcelable
-
-enum class UserRole {
-    USER, ADVERTISER, ADMIN
-}

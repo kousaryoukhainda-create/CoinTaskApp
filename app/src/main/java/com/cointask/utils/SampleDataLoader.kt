@@ -3,10 +3,12 @@ package com.cointask.utils
 import android.content.Context
 import com.cointask.data.models.ActivityLog
 import com.cointask.data.models.Campaign
+import com.cointask.data.models.CampaignStatus
 import com.cointask.data.models.Task
 import com.cointask.data.models.TaskStatus
 import com.cointask.data.models.TaskType
 import com.cointask.data.models.Transaction
+import com.cointask.data.models.TransactionType
 import com.cointask.data.models.User
 import com.cointask.data.models.UserRole
 import com.google.gson.Gson
@@ -123,16 +125,17 @@ fun SampleTask.toTask(currentTime: Long): Task {
 
 fun SampleCampaign.toCampaign(currentTime: Long): Campaign {
     return Campaign(
-        title = this.title,
+        advertiserId = this.advertiserId,
+        name = this.title,
         description = this.description,
         budget = this.budget,
-        spent = this.spent,
-        targetImpressions = this.targetImpressions,
-        currentImpressions = this.currentImpressions,
-        advertiserId = this.advertiserId,
+        spentAmount = this.spent,
+        totalTasks = this.targetImpressions / 100,
+        completedTasks = this.currentImpressions / 100,
+        status = if (this.isActive) CampaignStatus.ACTIVE else CampaignStatus.PENDING,
         startDate = currentTime + this.startDateOffset,
         endDate = currentTime + this.endDateOffset,
-        isActive = this.isActive
+        costPerTask = if (this.targetImpressions > 0) this.budget / (this.targetImpressions / 100) else 0
     )
 }
 
@@ -140,7 +143,13 @@ fun SampleTransaction.toTransaction(): Transaction {
     return Transaction(
         userId = this.userId,
         amount = this.amount,
-        type = Transaction.TransactionType.valueOf(this.type),
+        type = when (this.type) {
+            "DEPOSIT" -> TransactionType.BONUS
+            "WITHDRAWAL" -> TransactionType.WITHDRAWAL
+            "REWARD" -> TransactionType.EARNED_FROM_TASK
+            "CAMPAIGN_SPEND" -> TransactionType.CAMPAIGN_PAYMENT
+            else -> TransactionType.BONUS
+        },
         description = this.description
     )
 }
