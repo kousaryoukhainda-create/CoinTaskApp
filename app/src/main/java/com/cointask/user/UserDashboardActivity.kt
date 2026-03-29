@@ -8,6 +8,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.cointask.data.database.AppDatabase
 import com.cointask.data.models.Task
+import com.cointask.data.models.TaskType
+import com.cointask.data.models.TaskStatus
 import com.cointask.data.models.Transaction
 import com.cointask.data.models.TransactionStatus
 import com.cointask.data.models.TransactionType
@@ -128,21 +130,21 @@ class UserDashboardActivity : AppCompatActivity() {
                         advertiserId = 1,
                         title = "Watch Introduction Video",
                         description = "Watch our 2-minute introduction video",
-                        taskType = Task.TaskType.WATCH_VIDEO,
+                        taskType = TaskType.WATCH_VIDEO,
                         rewardCoins = 50,
                         totalCapacity = 100,
                         expiresAt = System.currentTimeMillis() + 7 * 24 * 3600000,
-                        status = Task.TaskStatus.ACTIVE
+                        status = TaskStatus.ACTIVE
                     ),
                     Task(
                         advertiserId = 1,
                         title = "Visit Partner Website",
                         description = "Visit our partner's website",
-                        taskType = Task.TaskType.VISIT_SITE,
+                        taskType = TaskType.VISIT_SITE,
                         rewardCoins = 30,
                         totalCapacity = 200,
                         expiresAt = System.currentTimeMillis() + 7 * 24 * 3600000,
-                        status = Task.TaskStatus.ACTIVE
+                        status = TaskStatus.ACTIVE
                     )
                 )
 

@@ -158,6 +158,6 @@ fun SampleActivityLog.toActivityLog(): ActivityLog {
     return ActivityLog(
         userId = this.userId,
         action = this.action,
-        description = this.description
+        details = this.description
     )
 }
