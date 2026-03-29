@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Summer Promotion",
+    "description": "Promote summer products",
+    "budget": 10000,
+    "spent": 0,
+    "targetImpressions": 10000,
+    "currentImpressions": 0,
+    "advertiserId": 2,
+    "startDateOffset": 0,
+    "endDateOffset": 2592000000,
+    "isActive": true
+  },
+  {
+    "title": "Holiday Campaign",
+    "description": "End of year holiday marketing campaign",
+    "budget": 25000,
+    "spent": 0,
+    "targetImpressions": 50000,
+    "currentImpressions": 0,
+    "advertiserId": 2,
+    "startDateOffset": 0,
+    "endDateOffset": 5184000000,
+    "isActive": true
+  },
+  {
+    "title": "New Product Launch",
+    "description": "Launch campaign for new product line",
+    "budget": 15000,
+    "spent": 0,
+    "targetImpressions": 30000,
+    "currentImpressions": 0,
+    "advertiserId": 2,
+    "startDateOffset": 0,
+    "endDateOffset": 3888000000,
+    "isActive": true
+  }
+]
