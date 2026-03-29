@@ -16,6 +16,7 @@ import com.cointask.utils.toCampaign
 import com.cointask.utils.toTask
 import com.cointask.utils.toTransaction
 import com.cointask.utils.toUser
+import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
