@@ -552,7 +552,7 @@ class AdminPanelActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     val ref = refInput.text.toString().trim().ifEmpty { "MANUAL-${System.currentTimeMillis()}" }
 
-                    database.withdrawalRequestDao().updateWithdrawalStatus(
+                    database.withdrawalRequestDao().completeWithdrawal(
                         withdrawal.id,
                         WithdrawalStatus.COMPLETED,
                         System.currentTimeMillis(),
@@ -595,7 +595,7 @@ class AdminPanelActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     val reason = reasonInput.text.toString().trim().ifEmpty { "No reason provided" }
 
-                    database.withdrawalRequestDao().updateWithdrawalStatus(
+                    database.withdrawalRequestDao().rejectWithdrawal(
                         withdrawal.id,
                         WithdrawalStatus.REJECTED,
                         System.currentTimeMillis(),
