@@ -61,10 +61,9 @@ class CoinTaskApplication : Application() {
                 insertedUserIds.add(userId)
             }
 
-            // Insert tasks (assign to first user)
-            val firstUserId = insertedUserIds.firstOrNull() ?: 1
+            // Insert tasks
             sampleTasks.forEach { sampleTask ->
-                val task = sampleTask.toTask(currentTime, firstUserId)
+                val task = sampleTask.toTask(currentTime)
                 database.taskDao().insertTask(task)
             }
 

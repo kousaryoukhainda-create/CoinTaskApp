@@ -3,40 +3,50 @@
     "title": "Watch Video Ad",
     "description": "Watch a 30-second video advertisement",
     "rewardCoins": 10,
-    "assignedToUserId": 1,
-    "status": "AVAILABLE",
-    "dueDateOffset": 604800000
+    "advertiserId": 2,
+    "taskType": "WATCH_VIDEO",
+    "totalCapacity": 100,
+    "status": "ACTIVE",
+    "expiresAtOffset": 604800000
   },
   {
     "title": "Complete Survey",
     "description": "Complete a market research survey",
     "rewardCoins": 50,
-    "assignedToUserId": 1,
-    "status": "AVAILABLE",
-    "dueDateOffset": 259200000
+    "advertiserId": 2,
+    "taskType": "SURVEY",
+    "totalCapacity": 50,
+    "status": "ACTIVE",
+    "expiresAtOffset": 259200000
   },
   {
     "title": "Install App",
     "description": "Install and open a partner app",
     "rewardCoins": 100,
-    "assignedToUserId": 1,
-    "status": "AVAILABLE",
-    "dueDateOffset": 1209600000
+    "advertiserId": 2,
+    "taskType": "VISIT_SITE",
+    "totalCapacity": 200,
+    "status": "ACTIVE",
+    "expiresAtOffset": 1209600000
   },
   {
     "title": "Share on Social Media",
     "description": "Share our app on your social media account",
     "rewardCoins": 25,
-    "assignedToUserId": 1,
-    "status": "AVAILABLE",
-    "dueDateOffset": 432000000
+    "advertiserId": 2,
+    "taskType": "SHARE_POST",
+    "totalCapacity": 75,
+    "status": "ACTIVE",
+    "expiresAtOffset": 432000000
   },
   {
     "title": "Refer a Friend",
     "description": "Invite a friend to join the platform",
     "rewardCoins": 200,
-    "assignedToUserId": 1,
-    "status": "AVAILABLE",
-    "dueDateOffset": 604800000
+    "advertiserId": 2,
+    "taskType": "FOLLOW_ACCOUNT",
+    "totalCapacity": 30,
+    "status": "ACTIVE",
+    "expiresAtOffset": 604800000
   }
 ]

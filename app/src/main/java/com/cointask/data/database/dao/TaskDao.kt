@@ -29,11 +29,11 @@ interface TaskDao {
     """)
     fun getFilteredTasks(type: TaskType?, minReward: Int, status: TaskStatus): Flow<List<Task>>
 
-    @Query("SELECT * FROM tasks WHERE status = 'AVAILABLE'")
+    @Query("SELECT * FROM tasks WHERE status = 'ACTIVE'")
     suspend fun getAvailableTasks(): List<Task>
 
-    @Query("SELECT * FROM tasks WHERE assignedToUserId = :userId")
-    suspend fun getTasksByUser(userId: Int): List<Task>
+    @Query("SELECT * FROM tasks WHERE advertiserId = :advertiserId")
+    suspend fun getTasksByUser(advertiserId: Int): List<Task>
 
     @Insert
     suspend fun insertTask(task: Task): Long

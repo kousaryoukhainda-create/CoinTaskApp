@@ -4,6 +4,8 @@ import android.content.Context
 import com.cointask.data.models.ActivityLog
 import com.cointask.data.models.Campaign
 import com.cointask.data.models.Task
+import com.cointask.data.models.TaskStatus
+import com.cointask.data.models.TaskType
 import com.cointask.data.models.Transaction
 import com.cointask.data.models.User
 import com.cointask.data.models.UserRole
@@ -24,9 +26,11 @@ data class SampleTask(
     val title: String,
     val description: String,
     val rewardCoins: Int,
-    val assignedToUserId: Int,
+    val advertiserId: Int,
+    val taskType: String,
+    val totalCapacity: Int,
     val status: String,
-    val dueDateOffset: Long
+    val expiresAtOffset: Long
 )
 
 data class SampleCampaign(
@@ -104,14 +108,16 @@ fun SampleUser.toUser(passwordHash: String): User {
     )
 }
 
-fun SampleTask.toTask(currentTime: Long, userId: Int): Task {
+fun SampleTask.toTask(currentTime: Long): Task {
     return Task(
         title = this.title,
         description = this.description,
         rewardCoins = this.rewardCoins,
-        assignedToUserId = userId,
-        status = Task.TaskStatus.valueOf(this.status),
-        dueDate = currentTime + this.dueDateOffset
+        advertiserId = this.advertiserId,
+        taskType = TaskType.valueOf(this.taskType),
+        totalCapacity = this.totalCapacity,
+        status = TaskStatus.valueOf(this.status),
+        expiresAt = currentTime + this.expiresAtOffset
     )
 }
 
