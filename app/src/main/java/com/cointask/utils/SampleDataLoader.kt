@@ -130,11 +130,3 @@ fun SampleActivityLog.toActivityLog(): ActivityLog {
         details = this.description
     )
 }
-
-fun SampleActivityLog.toActivityLog(): ActivityLog {
-    return ActivityLog(
-        userId = this.userId,
-        action = this.action,
-        details = this.description
-    )
-}

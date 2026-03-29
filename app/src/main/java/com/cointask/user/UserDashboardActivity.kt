@@ -23,6 +23,7 @@ import com.cointask.databinding.ActivityUserDashboardBinding
 import com.cointask.databinding.DialogBankAccountBinding
 import com.cointask.databinding.DialogWithdrawalBinding
 import com.cointask.user.adapters.TaskAdapter
+import com.cointask.utils.PasswordUtils
 import com.cointask.utils.PreferencesManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -816,19 +817,31 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
     }
 
     private fun showTaskProgress(task: Task, duration: Long) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.item_task, null)
-        val progressText = dialogView.findViewById<TextView>(R.id.tv_progress)
-        val progressBar = dialogView.findViewById<android.widget.ProgressBar>(R.id.progress_task)
+        val progressText = EditText(this).apply {
+            text = android.text.SpannableStringBuilder("Completing task...")
+            isEnabled = false
+        }
+        val progressBar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = true
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
 
-        progressBar.isIndeterminate = true
-        progressText.text = "Completing task..."
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 50, 50, 50)
+            addView(progressText as View)
+            addView(progressBar as View)
+        }
 
         AlertDialog.Builder(this)
             .setTitle("Task in Progress")
-            .setView(dialogView as android.view.View)
+            .setView(layout)
             .setCancelable(false)
             .show()
-        
+
         lifecycleScope.launch {
             kotlinx.coroutines.delay(duration)
             completeTask(task)

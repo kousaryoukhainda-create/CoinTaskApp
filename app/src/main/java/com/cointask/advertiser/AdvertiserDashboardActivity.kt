@@ -131,8 +131,6 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
     }
 
     private fun showCreateCampaignDialog() {
-        val view = LayoutInflater.from(this).inflate(R.layout.activity_advertiser_dashboard, null)
-        
         val nameInput = EditText(this).apply { hint = "Campaign Name" }
         val descriptionInput = EditText(this).apply {
             hint = "Description"
@@ -524,8 +522,8 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                     database.campaignDao().updateCampaign(campaign.copy(status = CampaignStatus.CANCELLED))
                     
                     // Mark associated tasks as completed
-                    val tasks = database.taskDao().getTasksByAdvertiser(campaign.advertiserId)
-                    tasks.forEach { task ->
+                    val tasks = database.taskDao().getTasksByUser(campaign.advertiserId)
+                    tasks.forEach { task: Task ->
                         database.taskDao().updateTask(task.copy(status = TaskStatus.COMPLETED))
                     }
                     
