@@ -815,13 +815,13 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         val dialogView = LayoutInflater.from(this).inflate(R.layout.item_task, null)
         val progressText = dialogView.findViewById<TextView>(R.id.tv_progress)
         val progressBar = dialogView.findViewById<android.widget.ProgressBar>(R.id.progress_task)
-        
+
         progressBar.isIndeterminate = true
         progressText.text = "Completing task..."
-        
+
         AlertDialog.Builder(this)
             .setTitle("Task in Progress")
-            .setView(dialogView)
+            .setView(dialogView as android.view.View)
             .setCancelable(false)
             .show()
         
