@@ -37,4 +37,7 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(*) FROM transactions WHERE userId = :userId AND timestamp > :timeThreshold")
     suspend fun getRecentTasksCount(userId: Int, timeThreshold: Long): Int
+
+    @Delete
+    suspend fun deleteTransaction(transaction: Transaction)
 }

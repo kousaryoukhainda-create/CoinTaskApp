@@ -38,10 +38,10 @@ interface WithdrawalRequestDao {
     suspend fun updateWithdrawalStatus(id: Int, status: WithdrawalStatus, processedDate: Long, adminId: Int)
 
     @Query("UPDATE withdrawal_requests SET status = :status, rejectionReason = :reason, processedDate = :processedDate, processedBy = :adminId WHERE id = :id")
-    suspend fun rejectWithdrawal(id: Int, status: WithdrawalStatus, reason: String, processedDate: Long, adminId: Int)
+    suspend fun updateWithdrawalStatus(id: Int, status: WithdrawalStatus, processedDate: Long, adminId: Int, rejectionReason: String)
 
     @Query("UPDATE withdrawal_requests SET transactionReference = :ref, status = :status, processedDate = :processedDate, processedBy = :adminId WHERE id = :id")
-    suspend fun completeWithdrawal(id: Int, ref: String, status: WithdrawalStatus, processedDate: Long, adminId: Int)
+    suspend fun updateWithdrawalStatus(id: Int, status: WithdrawalStatus, processedDate: Long, adminId: Int, transactionReference: String)
 
     @Delete
     suspend fun deleteWithdrawal(withdrawal: WithdrawalRequest)

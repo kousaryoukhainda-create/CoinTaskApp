@@ -600,7 +600,7 @@ class AdminPanelActivity : AppCompatActivity() {
                         WithdrawalStatus.REJECTED,
                         System.currentTimeMillis(),
                         preferencesManager.getUserId(),
-                        rejectionReason = reason
+                        reason
                     )
 
                     database.userDao().addCoins(withdrawal.userId, withdrawal.amount)

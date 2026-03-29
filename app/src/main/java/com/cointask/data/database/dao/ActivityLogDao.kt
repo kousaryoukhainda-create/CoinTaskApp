@@ -26,4 +26,7 @@ interface ActivityLogDao {
 
     @Query("SELECT * FROM activity_logs")
     suspend fun getAllLogsList(): List<ActivityLog>
+
+    @Delete
+    suspend fun deleteLog(log: ActivityLog)
 }
