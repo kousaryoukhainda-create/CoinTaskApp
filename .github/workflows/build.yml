@@ -27,20 +27,8 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       
-      - name: Install required libraries (libcrypto, curl, wget)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl1.1 libcurl4 wget unzip
-          # If libssl1.1 is not available, use libssl3 as fallback
-          if [ $? -ne 0 ]; then
-            sudo apt-get install -y libssl3 || true
-          fi
-      
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-      
-      - name: Clean project
-        run: ./gradlew clean
       
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
@@ -52,12 +40,12 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
       
-      - name: Upload build outputs
-        if: always()
+      - name: Upload build reports on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-outputs
+          name: build-reports
           path: |
-            app/build/reports/
-            app/build/outputs/logs/
+            **/build/reports/
+            **/build/outputs/logs/
           retention-days: 7
