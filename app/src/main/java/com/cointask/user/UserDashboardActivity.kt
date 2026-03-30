@@ -943,6 +943,12 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             setPadding(0, 0, 0, 15)
         }
 
+        val errorLabel = TextView(this).apply {
+            textSize = 14f
+            setPadding(0, 10, 0, 10)
+            visibility = android.view.View.GONE
+        }
+
         // Create WebView to load and play video
         val webView = android.webkit.WebView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -951,24 +957,61 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             )
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            
+
+            // Set WebChromeClient to capture JavaScript console errors (including YouTube errors)
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage): Boolean {
+                    android.util.Log.d("VideoPlayer", "Console: ${consoleMessage.message()} " +
+                        "(line ${consoleMessage.lineNumber()}, source ${consoleMessage.sourceId()})")
+                    // Check for YouTube error 153 (invalid video ID)
+                    if (consoleMessage.message().contains("153") || 
+                        consoleMessage.message().contains("Video not found")) {
+                        errorLabel.post {
+                            errorLabel.text = "⚠️ Error: Video not found or invalid video ID"
+                            errorLabel.visibility = android.view.View.VISIBLE
+                        }
+                    }
+                    return true
+                }
+            }
+
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun onReceivedError(
+                    view: android.webkit.WebView?,
+                    errorCode: Int,
+                    description: String?,
+                    failingUrl: String?
+                ) {
+                    android.util.Log.e("VideoPlayer", "WebView error: $description (code $errorCode)")
+                }
+            }
+
             // Load video - try to extract YouTube ID or load directly
             val videoHtml = if (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")) {
                 val videoId = extractYouTubeId(videoUrl)
+                android.util.Log.d("VideoPlayer", "Extracted YouTube ID: $videoId from URL: $videoUrl")
                 """
                 <!DOCTYPE html>
                 <html>
                 <body style="margin:0;padding:0;">
-                <iframe width="100%" height="100%" 
-                    src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0" 
-                    frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                <iframe width="100%" height="100%"
+                    src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen>
                 </iframe>
+                <script>
+                    // Listen for YouTube player errors
+                    window.onerror = function(msg, url, line, col, error) {
+                        console.error('Error: ' + msg + ' at ' + url + ':' + line);
+                        return false;
+                    };
+                </script>
                 </body>
                 </html>
                 """.trimIndent()
             } else {
+                android.util.Log.d("VideoPlayer", "Loading direct video URL: $videoUrl")
                 """
                 <!DOCTYPE html>
                 <html>
@@ -977,6 +1020,12 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     <source src="$videoUrl">
                     Your browser does not support the video tag.
                 </video>
+                <script>
+                    var video = document.querySelector('video');
+                    video.onerror = function() {
+                        console.error('Video load error: Unable to load video');
+                    };
+                </script>
                 </body>
                 </html>
                 """.trimIndent()
@@ -1000,6 +1049,7 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
 
         layout.addView(instructions)
         layout.addView(webView)
+        layout.addView(errorLabel)
         layout.addView(progressLabel)
         layout.addView(progressBar)
 
@@ -1037,19 +1087,36 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
      * Extract YouTube video ID from URL
      */
     private fun extractYouTubeId(url: String): String {
+        // Handle various YouTube URL formats
         val patterns = listOf(
-            Regex("v=([a-zA-Z0-9_-]+)"),
-            Regex("youtu.be/([a-zA-Z0-9_-]+)"),
-            Regex("embed/([a-zA-Z0-9_-]+)")
+            Regex("[?&]v=([a-zA-Z0-9_-]{11})"),           // https://youtube.com/watch?v=VIDEO_ID
+            Regex("youtu\\.be/([a-zA-Z0-9_-]{11})"),      // https://youtu.be/VIDEO_ID
+            Regex("youtube\\.com/embed/([a-zA-Z0-9_-]{11})"), // https://youtube.com/embed/VIDEO_ID
+            Regex("youtube\\.com/v/([a-zA-Z0-9_-]{11})"),     // https://youtube.com/v/VIDEO_ID
+            Regex("youtube\\.com/watch\\?v=([a-zA-Z0-9_-]{11})"), // https://youtube.com/watch?v=VIDEO_ID
+            Regex("v=([a-zA-Z0-9_-]{11})"),               // Fallback: any v= parameter
+            Regex("youtu\\.be/([a-zA-Z0-9_-]+)"),         // Fallback: short URL
+            Regex("embed/([a-zA-Z0-9_-]+)")               // Fallback: embed URL
         )
-        
+
         for (pattern in patterns) {
             val match = pattern.find(url)
             if (match != null) {
-                return match.groupValues[1]
+                val videoId = match.groupValues[1]
+                android.util.Log.d("VideoPlayer", "Matched YouTube ID '$videoId' with pattern: $pattern")
+                return videoId
             }
         }
-        return url.substringAfterLast("/")
+        
+        // Last resort: try to get the last path segment
+        val lastSegment = url.substringAfterLast("/")
+        if (lastSegment.isNotEmpty() && lastSegment.length in 11..15) {
+            android.util.Log.w("VideoPlayer", "Using fallback extraction: '$lastSegment'")
+            return lastSegment
+        }
+        
+        android.util.Log.e("VideoPlayer", "Failed to extract YouTube ID from URL: $url")
+        return ""
     }
 
     /**
