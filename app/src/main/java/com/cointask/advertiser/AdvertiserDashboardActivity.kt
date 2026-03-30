@@ -154,8 +154,9 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
         val taskTypeSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@AdvertiserDashboardActivity,
                 android.R.layout.simple_spinner_item,
-                arrayOf("WATCH_VIDEO", "VISIT_SITE", "LIKE_CONTENT", "SHARE_POST", "FOLLOW_ACCOUNT", "COMMENT", "SURVEY"))
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                arrayOf("WATCH_VIDEO", "VISIT_SITE", "LIKE_CONTENT", "SHARE_POST", "FOLLOW_ACCOUNT", "COMMENT", "SURVEY")).apply {
+                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
         }
 
         val linkLabel = TextView(this).apply {
@@ -218,7 +219,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
             textSize = 14f
             setPadding(0, 20, 0, 10)
             setTextColor(ContextCompat.getColor(this@AdvertiserDashboardActivity, com.cointask.R.color.primary))
-            textStyle = android.graphics.Typeface.BOLD
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
 
         layout.addView(nameInput)
@@ -321,6 +322,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
             }
 
             val campaignStatus = if (isDraft) CampaignStatus.PENDING else CampaignStatus.ACTIVE
+            val taskStatus = if (isDraft) TaskStatus.PENDING else TaskStatus.ACTIVE
 
             val campaign = Campaign(
                 advertiserId = currentAdvertiserId,
@@ -359,7 +361,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                     rewardCoins = rewardPerTask,
                     totalCapacity = 1,
                     completedCount = 0,
-                    status = campaignStatus,
+                    status = taskStatus,
                     expiresAt = currentDate + (7 * 24 * 60 * 60 * 1000),
                     videoUrl = videoUrl,
                     targetUrl = targetUrl,
@@ -429,8 +431,9 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
         val taskTypeSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@AdvertiserDashboardActivity,
                 android.R.layout.simple_spinner_item,
-                arrayOf("WATCH_VIDEO", "VISIT_SITE", "LIKE_CONTENT", "SHARE_POST", "FOLLOW_ACCOUNT", "COMMENT", "SURVEY"))
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                arrayOf("WATCH_VIDEO", "VISIT_SITE", "LIKE_CONTENT", "SHARE_POST", "FOLLOW_ACCOUNT", "COMMENT", "SURVEY")).apply {
+                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
         }
 
         val linkLabel = TextView(this).apply {
@@ -490,7 +493,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
             textSize = 14f
             setPadding(0, 20, 0, 10)
             setTextColor(ContextCompat.getColor(this@AdvertiserDashboardActivity, com.cointask.R.color.primary))
-            textStyle = android.graphics.Typeface.BOLD
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
 
         layout.addView(titleInput)
@@ -816,7 +819,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
 
                 lifecycleScope.launch {
                     val user = database.userDao().getUserByIdSuspend(currentAdvertiserId)
-                    if (user != null && PasswordUtils.checkPassword(currentPassword, user.password)) {
+                    if (user != null && PasswordUtils.verifyPassword(currentPassword, user.password)) {
                         val hashedPassword = PasswordUtils.hashPassword(newPassword)
                         database.userDao().updateUser(user.copy(password = hashedPassword))
                         Toast.makeText(this@AdvertiserDashboardActivity, "Password changed successfully!", Toast.LENGTH_SHORT).show()
@@ -838,7 +841,7 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                     Total Campaigns: ${campaigns.size}
                     Active: ${campaigns.count { it.status == CampaignStatus.ACTIVE }}
                     Paused: ${campaigns.count { it.status == CampaignStatus.PAUSED }}
-                    Completed: ${campaigns.count { it.status == CampaignStatus.COMPLETED }}
+                    Completed: ${campaigns.count { it.status == CampaignStatus.ENDED }}
 
                     Total Tasks: ${campaigns.sumOf { it.totalTasks }}
                     Completed Tasks: ${campaigns.sumOf { it.completedTasks }}
