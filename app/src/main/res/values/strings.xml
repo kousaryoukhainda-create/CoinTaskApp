@@ -47,11 +47,7 @@
     <string name="activity_logs">Activity Logs</string>
     <string name="platform_settings">Platform Settings</string>
     <string name="admin_security">Admin Security</string>
-    <string name="secret_key_verified">Secret Key Verified</string>
-    <string name="secret_key_required">Secret Key Required</string>
-    <string name="verify_secret_key">Verify Secret Key</string>
-    <string name="generate_secret_key">Generate Today\'s Secret Key</string>
-    
+
     <!-- Common -->
     <string name="logout">Logout</string>
     <string name="cancel">Cancel</string>
