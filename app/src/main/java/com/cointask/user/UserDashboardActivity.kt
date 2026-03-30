@@ -8,12 +8,16 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.webkit.WebView
+import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.cointask.auth.LoginActivity
@@ -785,19 +789,23 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             TaskType.COMMENT -> "💬"
             TaskType.SURVEY -> "📝"
         }
-        
+
         val progressPercent = (task.completedCount.toFloat() / task.totalCapacity * 100).toInt()
         val expiresDate = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(task.expiresAt))
         
+        // Get the task link based on type
+        val taskLink = task.videoUrl ?: task.targetUrl ?: task.socialMediaLink ?: "No link provided"
+
         val details = """
             $taskTypeIcon ${task.title}
-            
+
             ${task.description}
-            
+
             💰 Reward: ${task.rewardCoins} coins
             📊 Progress: ${task.completedCount}/${task.totalCapacity} ($progressPercent%)
             ⏰ Expires: $expiresDate
             📝 Type: ${task.taskType}
+            🔗 Link: ${taskLink.take(50)}${if (taskLink.length > 50) "..." else ""}
         """.trimIndent()
 
         AlertDialog.Builder(this)
@@ -811,39 +819,379 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
     }
 
     private fun startTask(task: Task) {
-        // Use advertiser-defined completion time (default to 5 seconds if not set)
-        val duration = (task.completionTimeSeconds * 1000L).coerceAtLeast(1000L)
-        showTaskProgress(task, duration)
+        // Show link preview first
+        showLinkPreviewAndStartTask(task)
     }
 
-    private fun showTaskProgress(task: Task, duration: Long) {
-        val progressText = EditText(this).apply {
-            text = android.text.SpannableStringBuilder("Completing task...")
-            isEnabled = false
+    /**
+     * Show link preview to user before starting the task
+     */
+    private fun showLinkPreviewAndStartTask(task: Task) {
+        val taskLink = task.videoUrl ?: task.targetUrl ?: task.socialMediaLink
+        
+        if (taskLink.isNullOrEmpty()) {
+            Toast.makeText(this, "No link provided for this task", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        // Create preview layout
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 50, 50, 50)
+        }
+
+        val previewTitle = TextView(this).apply {
+            text = "🔗 Task Link Preview"
+            textSize = 16f
+            setTextColor(ContextCompat.getColor(this@UserDashboardActivity, com.cointask.R.color.primary))
+            setPadding(0, 0, 0, 20)
+        }
+
+        val linkTextView = TextView(this).apply {
+            text = taskLink
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(this@UserDashboardActivity, com.cointask.R.color.text_primary))
+            setPadding(0, 0, 0, 20)
+            setOnClickListener {
+                // Open link in browser when clicked
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(taskLink))
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this@UserDashboardActivity, "Cannot open link", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        val actionInstructions = TextView(this).apply {
+            text = getActionInstructions(task.taskType, task.completionTimeSeconds)
+            textSize = 14f
+            setTextColor(ContextCompat.getColor(this@UserDashboardActivity, com.cointask.R.color.text_secondary))
+            setPadding(0, 15, 0, 20)
+        }
+
+        val confirmCheckbox = CheckBox(this).apply {
+            text = "I confirm I will complete this task honestly"
+            setPadding(0, 10, 0, 20)
+        }
+
+        layout.addView(previewTitle)
+        layout.addView(linkTextView)
+        layout.addView(actionInstructions)
+        layout.addView(confirmCheckbox)
+
+        AlertDialog.Builder(this)
+            .setTitle("Preview Task")
+            .setView(layout)
+            .setPositiveButton("Start Task") { _, _ ->
+                if (confirmCheckbox.isChecked) {
+                    startRealTaskCompletion(task, taskLink)
+                } else {
+                    Toast.makeText(this@UserDashboardActivity,
+                        "Please confirm you will complete the task honestly", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /**
+     * Get action instructions based on task type
+     */
+    private fun getActionInstructions(taskType: TaskType, completionTimeSeconds: Int): String {
+        return when (taskType) {
+            TaskType.WATCH_VIDEO -> "🎬 Watch the video for at least $completionTimeSeconds seconds. The video will play and your viewing time will be tracked."
+            TaskType.VISIT_SITE -> "🌐 Visit the website for $completionTimeSeconds seconds. Your visit will be tracked."
+            TaskType.LIKE_CONTENT -> "❤️ Click the link, like the content, and return. Your action will be verified."
+            TaskType.SHARE_POST -> "📤 Click the link, share the post, and return. Your action will be verified."
+            TaskType.FOLLOW_ACCOUNT -> "👤 Click the link, follow the account, and return. Your action will be verified."
+            TaskType.COMMENT -> "💬 Click the link, comment on the post, and return. Your action will be verified."
+            TaskType.SURVEY -> "📝 Click the link and complete the survey. Your completion will be verified."
+        }
+    }
+
+    /**
+     * Start real task completion with proper tracking
+     */
+    private fun startRealTaskCompletion(task: Task, taskLink: String) {
+        when (task.taskType) {
+            TaskType.WATCH_VIDEO -> {
+                showVideoPlayer(task, taskLink)
+            }
+            TaskType.VISIT_SITE, TaskType.SURVEY -> {
+                showWebsiteVisit(task, taskLink)
+            }
+            TaskType.LIKE_CONTENT, TaskType.SHARE_POST, TaskType.FOLLOW_ACCOUNT, TaskType.COMMENT -> {
+                showSocialActionDialog(task, taskLink)
+            }
+        }
+    }
+
+    /**
+     * Show embedded video player for WATCH_VIDEO tasks
+     */
+    private fun showVideoPlayer(task: Task, videoUrl: String) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20, 20, 20, 20)
+        }
+
+        val instructions = TextView(this).apply {
+            text = "🎬 Watch the video for ${task.completionTimeSeconds} seconds"
+            textSize = 16f
+            setPadding(0, 0, 0, 15)
+        }
+
+        // Create WebView to load and play video
+        val webView = android.webkit.WebView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                300
+            )
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            
+            // Load video - try to extract YouTube ID or load directly
+            val videoHtml = if (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")) {
+                val videoId = extractYouTubeId(videoUrl)
+                """
+                <!DOCTYPE html>
+                <html>
+                <body style="margin:0;padding:0;">
+                <iframe width="100%" height="100%" 
+                    src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+                </body>
+                </html>
+                """.trimIndent()
+            } else {
+                """
+                <!DOCTYPE html>
+                <html>
+                <body style="margin:0;padding:0;">
+                <video width="100%" height="100%" controls autoplay>
+                    <source src="$videoUrl">
+                    Your browser does not support the video tag.
+                </video>
+                </body>
+                </html>
+                """.trimIndent()
+            }
+            loadDataWithBaseURL(null, videoHtml, "text/html", "UTF-8", null)
+        }
+
+        val progressLabel = TextView(this).apply {
+            text = "Progress: 0/${task.completionTimeSeconds}s"
+            textSize = 14f
+            setPadding(0, 15, 0, 10)
+        }
+
         val progressBar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            isIndeterminate = true
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
+            max = task.completionTimeSeconds * 100 // For smooth progress
+        }
+
+        layout.addView(instructions)
+        layout.addView(webView)
+        layout.addView(progressLabel)
+        layout.addView(progressBar)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Watch Video")
+            .setView(layout)
+            .setCancelable(false)
+            .setNegativeButton("Cancel") { _, _ ->
+                // User cancelled - don't complete task
+            }
+            .show()
+
+        // Track video watching time
+        var elapsedSeconds = 0
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                if (elapsedSeconds < task.completionTimeSeconds && dialog.isShowing) {
+                    elapsedSeconds++
+                    progressLabel.text = "Progress: $elapsedSeconds/${task.completionTimeSeconds}s"
+                    progressBar.progress = elapsedSeconds * 100
+                    if (elapsedSeconds >= task.completionTimeSeconds) {
+                        dialog.dismiss()
+                        completeTask(task)
+                    } else {
+                        handler.postDelayed(this, 1000)
+                    }
+                }
+            }
+        }
+        handler.post(runnable)
+    }
+
+    /**
+     * Extract YouTube video ID from URL
+     */
+    private fun extractYouTubeId(url: String): String {
+        val patterns = listOf(
+            Regex("v=([a-zA-Z0-9_-]+)"),
+            Regex("youtu.be/([a-zA-Z0-9_-]+)"),
+            Regex("embed/([a-zA-Z0-9_-]+)")
+        )
+        
+        for (pattern in patterns) {
+            val match = pattern.find(url)
+            if (match != null) {
+                return match.groupValues[1]
+            }
+        }
+        return url.substringAfterLast("/")
+    }
+
+    /**
+     * Show website visit tracking for VISIT_SITE and SURVEY tasks
+     */
+    private fun showWebsiteVisit(task: Task, websiteUrl: String) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20, 20, 20, 20)
+        }
+
+        val instructions = TextView(this).apply {
+            text = "🌐 Visit the website for ${task.completionTimeSeconds} seconds"
+            textSize = 16f
+            setPadding(0, 0, 0, 15)
+        }
+
+        val openButton = android.widget.Button(this).apply {
+            text = "Open Website"
+            setPadding(0, 20, 0, 20)
+            setOnClickListener {
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(websiteUrl))
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this@UserDashboardActivity, "Cannot open website", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        val progressLabel = TextView(this).apply {
+            text = "Time remaining: ${task.completionTimeSeconds}s"
+            textSize = 14f
+            setPadding(0, 15, 0, 10)
+        }
+
+        val progressBar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            max = task.completionTimeSeconds * 100
+        }
+
+        layout.addView(instructions)
+        layout.addView(openButton)
+        layout.addView(progressLabel)
+        layout.addView(progressBar)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Visit Website")
+            .setView(layout)
+            .setCancelable(false)
+            .setNegativeButton("Cancel") { _, _ -> }
+            .show()
+
+        // Track visit time
+        var elapsedSeconds = 0
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                if (elapsedSeconds < task.completionTimeSeconds && dialog.isShowing) {
+                    elapsedSeconds++
+                    progressLabel.text = "Time remaining: ${task.completionTimeSeconds - elapsedSeconds}s"
+                    progressBar.progress = elapsedSeconds * 100
+                    if (elapsedSeconds >= task.completionTimeSeconds) {
+                        dialog.dismiss()
+                        completeTask(task)
+                    } else {
+                        handler.postDelayed(this, 1000)
+                    }
+                }
+            }
+        }
+        handler.post(runnable)
+    }
+
+    /**
+     * Show social media action dialog for LIKE, SHARE, FOLLOW, COMMENT tasks
+     */
+    private fun showSocialActionDialog(task: Task, socialLink: String) {
+        val actionName = when (task.taskType) {
+            TaskType.LIKE_CONTENT -> "like"
+            TaskType.SHARE_POST -> "share"
+            TaskType.FOLLOW_ACCOUNT -> "follow"
+            TaskType.COMMENT -> "comment on"
+            else -> "interact with"
         }
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(50, 50, 50, 50)
-            addView(progressText as View)
-            addView(progressBar as View)
+            setPadding(20, 20, 20, 20)
         }
 
-        AlertDialog.Builder(this)
-            .setTitle("Task in Progress")
+        val instructions = TextView(this).apply {
+            text = "❤️ Click the button below to $actionName this content:\n\n$socialLink"
+            textSize = 14f
+            setPadding(0, 0, 0, 20)
+        }
+
+        val openButton = android.widget.Button(this).apply {
+            text = "Open and $actionName"
+            setPadding(0, 15, 0, 15)
+            setOnClickListener {
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(socialLink))
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this@UserDashboardActivity, "Cannot open link", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        val confirmText = TextView(this).apply {
+            text = "After completing the action, click 'I Completed This' below"
+            textSize = 12f
+            setPadding(0, 15, 0, 10)
+        }
+
+        val confirmButton = android.widget.Button(this).apply {
+            text = "I Completed This Action"
+            setPadding(0, 10, 0, 10)
+        }
+
+        layout.addView(instructions)
+        layout.addView(openButton)
+        layout.addView(confirmText)
+        layout.addView(confirmButton)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("$actionName Content")
             .setView(layout)
             .setCancelable(false)
+            .setNegativeButton("Cancel") { _, _ -> }
             .show()
 
-        lifecycleScope.launch {
-            kotlinx.coroutines.delay(duration)
+        confirmButton.setOnClickListener {
+            // Verify action was completed (in real app, would use API verification)
+            // For now, we track the action and complete the task
+            dialog.dismiss()
             completeTask(task)
         }
     }

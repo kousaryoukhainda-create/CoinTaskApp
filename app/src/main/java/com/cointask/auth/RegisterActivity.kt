@@ -34,10 +34,21 @@ class RegisterActivity : AppCompatActivity() {
     private fun setupRoleTabs() {
         binding.tabLayoutRoles.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> selectRole(UserRole.ADMIN)
-                    1 -> selectRole(UserRole.USER)
-                    2 -> selectRole(UserRole.ADVERTISER)
+                val selectedPosition = tab?.position ?: 0
+                val adminTabExists = binding.tabLayoutRoles.getTabAt(0)?.text?.toString()?.contains("Admin") == true
+                
+                when {
+                    // Admin tab exists and is selected
+                    adminTabExists && selectedPosition == 0 -> selectRole(UserRole.ADMIN)
+                    // Admin tab exists, User tab selected
+                    adminTabExists && selectedPosition == 1 -> selectRole(UserRole.USER)
+                    // Admin tab exists, Advertiser tab selected
+                    adminTabExists && selectedPosition == 2 -> selectRole(UserRole.ADVERTISER)
+                    // Admin tab removed, first tab is User
+                    !adminTabExists && selectedPosition == 0 -> selectRole(UserRole.USER)
+                    // Admin tab removed, second tab is Advertiser
+                    !adminTabExists && selectedPosition == 1 -> selectRole(UserRole.ADVERTISER)
+                    else -> selectRole(UserRole.USER)
                 }
             }
 
@@ -45,8 +56,13 @@ class RegisterActivity : AppCompatActivity() {
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
 
-        // Initialize with ADMIN role selected
-        selectRole(UserRole.ADMIN)
+        // Initialize with first available role selected
+        val adminTabExists = binding.tabLayoutRoles.getTabAt(0)?.text?.toString()?.contains("Admin") == true
+        if (adminTabExists) {
+            selectRole(UserRole.ADMIN)
+        } else {
+            selectRole(UserRole.USER)
+        }
     }
 
     private fun selectRole(role: UserRole) {
