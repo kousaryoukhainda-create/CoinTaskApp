@@ -934,138 +934,116 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
      * Uses dynamic VideoPlayerHelper to support multiple video providers
      */
     private fun showVideoPlayer(task: Task, videoUrl: String) {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
-        }
+        // Inflate the video player dialog layout
+        val dialogView = LayoutInflater.from(this).inflate(com.cointask.R.layout.dialog_video_player, null)
+        
+        val videoTitleTextView = dialogView.findViewById<TextView>(com.cointask.R.id.tv_video_title)
+        val closeBtn = dialogView.findViewById<android.widget.ImageButton>(com.cointask.R.id.btn_close)
+        val loadingContainer = dialogView.findViewById<LinearLayout>(com.cointask.R.id.loading_container)
+        val errorContainer = dialogView.findViewById<LinearLayout>(com.cointask.R.id.error_container)
+        val errorMessageTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_error_message)
+        val retryBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_retry)
+        val taskDescriptionTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_task_description)
+        val cancelBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_cancel)
+        val completeBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_complete)
+        val webviewContainer = dialogView.findViewById<FrameLayout>(com.cointask.R.id.webview_video)
 
-        val instructions = TextView(this).apply {
-            text = "🎬 Watch the video for ${task.completionTimeSeconds} seconds"
-            textSize = 16f
-            setPadding(0, 0, 0, 15)
-        }
-
-        val errorLabel = TextView(this).apply {
-            textSize = 14f
-            setPadding(0, 10, 0, 10)
-            visibility = android.view.View.GONE
-        }
-
+        // Set initial UI
+        videoTitleTextView.text = task.title
+        taskDescriptionTv.text = "🎬 Watch for ${task.completionTimeSeconds} seconds to earn ${task.rewardCoins} coins"
+        
         // Track video playback state
         var videoStarted = false
         var videoError = false
+        var videoEnded = false
 
-        // Create WebView with dynamic video player configuration
-        val webView = android.webkit.WebView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                300
-            )
-            
-            // Setup video player with VideoPlayerHelper
-            val config = VideoPlayerHelper.configure(videoUrl)
-                .autoPlay(true)
-                .enableTracking(true)
-                .height(300)
-                .listener(object : VideoPlaybackListener {
-                    override fun onVideoStarted() {
-                        android.util.Log.d("VideoPlayer", "Video started playing")
-                        videoStarted = true
+        // Create WebView for video playback
+        val webView = android.webkit.WebView(this)
+        webviewContainer.addView(webView)
+
+        // Setup video player with VideoPlayerHelper
+        val config = VideoPlayerHelper.configure(videoUrl)
+            .autoPlay(true)
+            .enableTracking(true)
+            .height(250)
+            .listener(object : VideoPlaybackListener {
+                override fun onVideoStarted() {
+                    android.util.Log.d("VideoPlayer", "Video started playing")
+                    videoStarted = true
+                    videoError = false
+                    loadingContainer.post {
+                        loadingContainer.visibility = android.view.View.GONE
+                        errorContainer.visibility = android.view.View.GONE
                     }
+                }
 
-                    override fun onVideoError(errorCode: String, message: String) {
-                        android.util.Log.e("VideoPlayer", "Video error: $errorCode - $message")
-                        videoError = true
-                        errorLabel.post {
-                            errorLabel.text = "⚠️ Error: $message"
-                            errorLabel.visibility = android.view.View.VISIBLE
-                            instructions.text = "❌ Video failed to load"
-                        }
+                override fun onVideoError(errorCode: String, message: String) {
+                    android.util.Log.e("VideoPlayer", "Video error: $errorCode - $message")
+                    videoError = true
+                    loadingContainer.post {
+                        loadingContainer.visibility = android.view.View.GONE
+                        errorContainer.visibility = android.view.View.VISIBLE
+                        errorMessageTv.text = "⚠️ $message\n\n(Error: $errorCode)"
                     }
+                }
 
-                    override fun onVideoEnded() {
-                        android.util.Log.d("VideoPlayer", "Video ended")
+                override fun onVideoEnded() {
+                    android.util.Log.d("VideoPlayer", "Video ended")
+                    videoEnded = true
+                    loadingContainer.post {
+                        loadingContainer.visibility = android.view.View.GONE
                     }
-                })
-                .build()
-            
-            VideoPlayerHelper.setupWebView(this, config)
-        }
+                    completeBtn.post {
+                        completeBtn.isEnabled = true
+                        completeBtn.text = "Claim ${task.rewardCoins} 🪙"
+                    }
+                }
+            })
+            .build()
 
-        val progressLabel = TextView(this).apply {
-            text = "Progress: 0/${task.completionTimeSeconds}s"
-            textSize = 14f
-            setPadding(0, 15, 0, 10)
-        }
-
-        val progressBar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            max = task.completionTimeSeconds * 100
-        }
-
-        layout.addView(instructions)
-        layout.addView(webView)
-        layout.addView(errorLabel)
-        layout.addView(progressLabel)
-        layout.addView(progressBar)
-
+        VideoPlayerHelper.setupWebView(webView, config)
+        
+        // Create dialog first so we can reference it in button clicks
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Watch Video")
-            .setView(layout)
+            .setView(dialogView)
             .setCancelable(false)
-            .setNegativeButton("Cancel") { _, _ -> }
-            .show()
-
-        // Track video watching time
-        var elapsedSeconds = 0
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val runnable = object : Runnable {
-            override fun run() {
-                if (videoError) {
-                    android.util.Log.e("VideoPlayer", "Video error detected, stopping timer and not awarding rewards")
-                    dialog.dismiss()
-                    android.widget.Toast.makeText(
-                        this@UserDashboardActivity,
-                        "Video could not be played. No rewards will be added.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                    return
-                }
-
-                if (elapsedSeconds >= 10 && !videoStarted && elapsedSeconds < task.completionTimeSeconds) {
-                    android.util.Log.w("VideoPlayer", "Video hasn't started after $elapsedSeconds seconds")
-                    errorLabel.post {
-                        errorLabel.text = "⚠️ Warning: Video may not be playing correctly"
-                        errorLabel.visibility = android.view.View.VISIBLE
-                    }
-                }
-
-                if (elapsedSeconds < task.completionTimeSeconds && dialog.isShowing) {
-                    elapsedSeconds++
-                    progressLabel.text = "Progress: $elapsedSeconds/${task.completionTimeSeconds}s"
-                    progressBar.progress = elapsedSeconds * 100
-                    if (elapsedSeconds >= task.completionTimeSeconds) {
-                        dialog.dismiss()
-                        if (videoStarted) {
-                            completeTask(task)
-                        } else {
-                            android.util.Log.w("VideoPlayer", "Video never started, not completing task")
-                            android.widget.Toast.makeText(
-                                this@UserDashboardActivity,
-                                "Video did not play. No rewards added.",
-                                android.widget.Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } else {
-                        handler.postDelayed(this, 1000)
-                    }
-                }
+            .create()
+        
+        // Setup retry button
+        retryBtn.setOnClickListener {
+            loadingContainer.visibility = android.view.View.VISIBLE
+            errorContainer.visibility = android.view.View.GONE
+            videoError = false
+            VideoPlayerHelper.retry(webView)
+        }
+        
+        // Setup close button
+        closeBtn.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        // Setup cancel button
+        cancelBtn.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        // Setup complete button - will be enabled when video ends
+        completeBtn.setOnClickListener {
+            if (videoEnded || (videoStarted && !videoError)) {
+                dialog.dismiss()
+                completeTask(task)
             }
         }
-        handler.post(runnable)
+        
+        dialog.show()
+        
+        // Hide loading after a timeout if video hasn't started
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        handler.postDelayed({
+            if (loadingContainer.visibility == android.view.View.VISIBLE && !videoStarted && !videoError) {
+                loadingContainer.visibility = android.view.View.GONE
+            }
+        }, 10000) // 10 seconds timeout
     }
 
     /**
