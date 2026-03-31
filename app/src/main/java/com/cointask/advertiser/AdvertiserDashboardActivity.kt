@@ -313,63 +313,91 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
 
     /**
      * Validate YouTube URL and extract video ID
-     * Returns null if invalid, video ID if valid
+     * Supports: watch?v=, youtu.be/, embed/, v/, shorts/, and URLs with query parameters
+     * Returns null if not a YouTube URL or invalid, video ID if valid
      */
     private fun validateYouTubeUrl(url: String): String? {
         if (!url.contains("youtube.com") && !url.contains("youtu.be")) {
             return null // Not a YouTube URL
         }
-        
+
         val patterns = listOf(
-            Regex("[?&]v=([a-zA-Z0-9_-]{11})"),
-            Regex("youtu\\.be/([a-zA-Z0-9_-]{11})"),
-            Regex("youtube\\.com/embed/([a-zA-Z0-9_-]{11})"),
-            Regex("youtube\\.com/v/([a-zA-Z0-9_-]{11})")
+            Regex("[?&]v=([a-zA-Z0-9_-]{11})"),                    // https://youtube.com/watch?v=VIDEO_ID
+            Regex("youtu\\.be/([a-zA-Z0-9_-]{11})"),               // https://youtu.be/VIDEO_ID
+            Regex("youtube\\.com/embed/([a-zA-Z0-9_-]{11})"),      // https://youtube.com/embed/VIDEO_ID
+            Regex("youtube\\.com/v/([a-zA-Z0-9_-]{11})"),          // https://youtube.com/v/VIDEO_ID
+            Regex("youtube\\.com/shorts/([a-zA-Z0-9_-]{11})"),     // https://youtube.com/shorts/VIDEO_ID (exact 11)
+            Regex("youtube\\.com/shorts/([a-zA-Z0-9_-]+)"),        // https://youtube.com/shorts/VIDEO_ID (fallback)
+            Regex("v=([a-zA-Z0-9_-]{11})"),                        // Fallback: any v= parameter
+            Regex("youtu\\.be/([a-zA-Z0-9_-]+)"),                  // Fallback: short URL (any length)
+            Regex("embed/([a-zA-Z0-9_-]+)"),                       // Fallback: embed URL
+            Regex("shorts/([a-zA-Z0-9_-]+)")                       // Fallback: shorts URL
         )
-        
+
         for (pattern in patterns) {
             val match = pattern.find(url)
-            if (match != null && match.groupValues[1].length == 11) {
-                return match.groupValues[1]
+            if (match != null) {
+                val videoId = match.groupValues[1]
+                // Accept video IDs with length between 11-15 characters (YouTube's range)
+                if (videoId.length in 11..15) {
+                    return videoId
+                }
             }
         }
-        
+
+        // Fallback: extract path segment after last slash
+        val pathSegment = url.substringAfterLast("/").substringBefore("?")
+        if (pathSegment.isNotEmpty() && pathSegment.length in 11..15) {
+            return pathSegment
+        }
+
         return null // Invalid YouTube URL format
+    }
+
+    /**
+     * Basic URL format validation - checks if it's a valid HTTP/HTTPS URL
+     */
+    private fun isValidUrlFormat(url: String): Boolean {
+        return url.startsWith("http://") || url.startsWith("https://")
     }
 
     /**
      * Validate URL based on task type
      * Returns error message if invalid, null if valid
+     * Accepts any valid URL format - validation is permissive to support all platforms
      */
     private fun validateTaskUrl(taskType: String, url: String): String? {
+        // First check basic URL format for all task types
+        if (!isValidUrlFormat(url)) {
+            return "URL must start with http:// or https://"
+        }
+
         when (taskType) {
             "WATCH_VIDEO" -> {
                 if (url.contains("youtube.com") || url.contains("youtu.be")) {
                     val videoId = validateYouTubeUrl(url)
                     if (videoId == null) {
-                        return "Invalid YouTube URL format. Please use a valid YouTube video URL (e.g., https://youtube.com/watch?v=VIDEO_ID)"
-                    }
-                    // Check for common invalid video IDs
-                    if (videoId == "AAAAAAAAAAA" || videoId.all { it == '0' }) {
-                        return "Invalid video ID. Please check the YouTube URL is correct"
+                        // For YouTube URLs, still allow if it looks like a valid URL structure
+                        // The video player will handle playback errors
+                        if (!url.contains("/shorts/") && !url.contains("watch?v=") && 
+                            !url.contains("youtu.be/") && !url.contains("/embed/") && 
+                            !url.contains("/v/")) {
+                            return "Invalid YouTube URL format. Please use formats like: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID"
+                        }
+                        // Allow YouTube URLs that have the right structure but may have unusual video IDs
+                        // The video player will verify playback
                     }
                 }
-                // For non-YouTube URLs, just check it's a valid URL format
-                if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    return "URL must start with http:// or https://"
-                }
+                // For other video platforms (Vimeo, direct links, etc.), just validate URL format
+                // The video player will handle playback
             }
             "VISIT_SITE", "SURVEY" -> {
-                if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    return "URL must start with http:// or https://"
-                }
+                // Accept any valid URL - let the user visit the site
+                // Additional validation can be done server-side if needed
             }
             "LIKE_CONTENT", "SHARE_POST", "FOLLOW_ACCOUNT", "COMMENT" -> {
-                val allowedDomains = listOf("instagram.com", "tiktok.com", "twitter.com", "x.com", "facebook.com", "youtube.com")
-                val isAllowed = allowedDomains.any { url.contains(it) }
-                if (!isAllowed) {
-                    return "Social media link must be from Instagram, TikTok, Twitter/X, Facebook, or YouTube"
-                }
+                // Accept any valid URL - social media platforms constantly change
+                // The task completion verification will handle validation
             }
         }
         return null // Valid
