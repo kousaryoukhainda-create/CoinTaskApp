@@ -949,6 +949,10 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             visibility = android.view.View.GONE
         }
 
+        // Track video playback state
+        var videoStarted = false
+        var videoError = false
+
         // Create WebView to load and play video
         val webView = android.webkit.WebView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -958,17 +962,47 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
 
+            // Add JavaScript interface to track video playback
+            addJavascriptInterface(object {
+                @android.webkit.JavascriptInterface
+                fun onVideoStart() {
+                    android.util.Log.d("VideoPlayer", "Video started playing")
+                    videoStarted = true
+                }
+
+                @android.webkit.JavascriptInterface
+                fun onVideoError(errorCode: String, message: String) {
+                    android.util.Log.e("VideoPlayer", "Video error: $errorCode - $message")
+                    videoError = true
+                    errorLabel.post {
+                        errorLabel.text = "⚠️ Error: $message"
+                        errorLabel.visibility = android.view.View.VISIBLE
+                        instructions.text = "❌ Video failed to load"
+                    }
+                }
+
+                @android.webkit.JavascriptInterface
+                fun onVideoEnded() {
+                    android.util.Log.d("VideoPlayer", "Video ended")
+                }
+            }, "VideoPlayerInterface")
+
             // Set WebChromeClient to capture JavaScript console errors (including YouTube errors)
             webChromeClient = object : android.webkit.WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage): Boolean {
                     android.util.Log.d("VideoPlayer", "Console: ${consoleMessage.message()} " +
                         "(line ${consoleMessage.lineNumber()}, source ${consoleMessage.sourceId()})")
-                    // Check for YouTube error 153 (invalid video ID)
-                    if (consoleMessage.message().contains("153") || 
-                        consoleMessage.message().contains("Video not found")) {
+                    // Check for YouTube error 153 (invalid video ID) or other playback errors
+                    val msg = consoleMessage.message()
+                    if (msg.contains("153") ||
+                        msg.contains("Video not found") ||
+                        msg.contains("Error") ||
+                        msg.contains("failed")) {
+                        videoError = true
                         errorLabel.post {
                             errorLabel.text = "⚠️ Error: Video not found or invalid video ID"
                             errorLabel.visibility = android.view.View.VISIBLE
+                            instructions.text = "❌ Video failed to load"
                         }
                     }
                     return true
@@ -983,6 +1017,14 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     failingUrl: String?
                 ) {
                     android.util.Log.e("VideoPlayer", "WebView error: $description (code $errorCode)")
+                    if (errorCode >= 400) {
+                        videoError = true
+                        errorLabel.post {
+                            errorLabel.text = "⚠️ Error: Failed to load video resource"
+                            errorLabel.visibility = android.view.View.VISIBLE
+                            instructions.text = "❌ Video failed to load"
+                        }
+                    }
                 }
             }
 
@@ -994,8 +1036,8 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                 <!DOCTYPE html>
                 <html>
                 <body style="margin:0;padding:0;">
-                <iframe width="100%" height="100%"
-                    src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
+                <iframe id="video" width="100%" height="100%"
+                    src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0&enablejsapi=1"
                     frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowfullscreen>
@@ -1004,8 +1046,39 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     // Listen for YouTube player errors
                     window.onerror = function(msg, url, line, col, error) {
                         console.error('Error: ' + msg + ' at ' + url + ':' + line);
+                        if (msg.toString().includes('153') || msg.toString().includes('not found')) {
+                            VideoPlayerInterface.onVideoError('153', 'Video not found or invalid video ID');
+                        }
                         return false;
                     };
+                    
+                    // Track YouTube player state
+                    var tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    var firstScriptTag = document.getElementsByTagName('script')[0];
+                    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                    
+                    function onYouTubeIframeAPIReady() {
+                        var player = new YT.Player('video', {
+                            events: {
+                                'onStateChange': function(event) {
+                                    if (event.data == YT.PlayerState.PLAYING) {
+                                        VideoPlayerInterface.onVideoStart();
+                                    }
+                                    if (event.data == YT.PlayerState.ENDED) {
+                                        VideoPlayerInterface.onVideoEnded();
+                                    }
+                                },
+                                'onError': function(event) {
+                                    var errorMsg = 'Player error: ' + event.data;
+                                    if (event.data == 100) errorMsg = 'Video not found';
+                                    if (event.data == 101 || event.data == 150) errorMsg = 'Video cannot be played';
+                                    if (event.data == 153) errorMsg = 'Invalid video ID';
+                                    VideoPlayerInterface.onVideoError(event.data.toString(), errorMsg);
+                                }
+                            }
+                        });
+                    }
                 </script>
                 </body>
                 </html>
@@ -1016,15 +1089,41 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                 <!DOCTYPE html>
                 <html>
                 <body style="margin:0;padding:0;">
-                <video width="100%" height="100%" controls autoplay>
+                <video id="video" width="100%" height="100%" controls autoplay>
                     <source src="$videoUrl">
                     Your browser does not support the video tag.
                 </video>
                 <script>
-                    var video = document.querySelector('video');
-                    video.onerror = function() {
-                        console.error('Video load error: Unable to load video');
-                    };
+                    var video = document.querySelector('#video');
+                    
+                    video.addEventListener('play', function() {
+                        VideoPlayerInterface.onVideoStart();
+                    });
+                    
+                    video.addEventListener('ended', function() {
+                        VideoPlayerInterface.onVideoEnded();
+                    });
+                    
+                    video.addEventListener('error', function() {
+                        var error = video.error;
+                        var errorMsg = 'Unknown video error';
+                        if (error) {
+                            if (error.code == 1) errorMsg = 'Video loading aborted';
+                            if (error.code == 2) errorMsg = 'Network error while loading video';
+                            if (error.code == 3) errorMsg = 'Video decoding failed';
+                            if (error.code == 4) errorMsg = 'Video format not supported';
+                        }
+                        VideoPlayerInterface.onVideoError(error ? error.code.toString() : '0', errorMsg);
+                    });
+                    
+                    // Check if video failed to load initially
+                    video.addEventListener('loadedmetadata', function() {
+                        console.log('Video metadata loaded successfully');
+                    });
+                    
+                    video.addEventListener('loadstart', function() {
+                        console.log('Video load started');
+                    });
                 </script>
                 </body>
                 </html>
@@ -1067,13 +1166,44 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         val runnable = object : Runnable {
             override fun run() {
+                // Check if video encountered an error
+                if (videoError) {
+                    android.util.Log.e("VideoPlayer", "Video error detected, stopping timer and not awarding rewards")
+                    dialog.dismiss()
+                    android.widget.Toast.makeText(
+                        this@UserDashboardActivity,
+                        "Video could not be played. No rewards will be added.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+                
+                // Check if video hasn't started after a reasonable time (10 seconds)
+                if (elapsedSeconds >= 10 && !videoStarted && elapsedSeconds < task.completionTimeSeconds) {
+                    android.util.Log.w("VideoPlayer", "Video hasn't started after $elapsedSeconds seconds")
+                    errorLabel.post {
+                        errorLabel.text = "⚠️ Warning: Video may not be playing correctly"
+                        errorLabel.visibility = android.view.View.VISIBLE
+                    }
+                }
+                
                 if (elapsedSeconds < task.completionTimeSeconds && dialog.isShowing) {
                     elapsedSeconds++
                     progressLabel.text = "Progress: $elapsedSeconds/${task.completionTimeSeconds}s"
                     progressBar.progress = elapsedSeconds * 100
                     if (elapsedSeconds >= task.completionTimeSeconds) {
                         dialog.dismiss()
-                        completeTask(task)
+                        // Only complete task if video actually started playing
+                        if (videoStarted) {
+                            completeTask(task)
+                        } else {
+                            android.util.Log.w("VideoPlayer", "Video never started, not completing task")
+                            android.widget.Toast.makeText(
+                                this@UserDashboardActivity,
+                                "Video did not play. No rewards added.",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
                     } else {
                         handler.postDelayed(this, 1000)
                     }

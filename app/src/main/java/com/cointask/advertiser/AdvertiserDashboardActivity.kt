@@ -254,6 +254,13 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                 val selectedTaskType = taskTypeSpinner.selectedItem.toString()
 
                 if (name.isNotEmpty() && description.isNotEmpty() && budget > 0 && tasks > 0 && rewardPerTask > 0 && linkUrl.isNotEmpty()) {
+                    // Validate URL based on task type
+                    val urlError = validateTaskUrl(selectedTaskType, linkUrl)
+                    if (urlError != null) {
+                        Toast.makeText(this@AdvertiserDashboardActivity,
+                            urlError, Toast.LENGTH_LONG).show()
+                        return@setPositiveButton
+                    }
                     createCampaign(name, description, budget, tasks, rewardPerTask, selectedTaskType, linkUrl,
                         targetViewsInput.text.toString().toIntOrNull() ?: 0,
                         targetLikesInput.text.toString().toIntOrNull() ?: 0,
@@ -275,6 +282,13 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                 val selectedTaskType = taskTypeSpinner.selectedItem.toString()
 
                 if (name.isNotEmpty() && description.isNotEmpty() && budget > 0 && tasks > 0 && rewardPerTask > 0 && linkUrl.isNotEmpty()) {
+                    // Validate URL based on task type
+                    val urlError = validateTaskUrl(selectedTaskType, linkUrl)
+                    if (urlError != null) {
+                        Toast.makeText(this@AdvertiserDashboardActivity,
+                            urlError, Toast.LENGTH_LONG).show()
+                        return@setNeutralButton
+                    }
                     val totalCost = budget + (rewardPerTask * tasks)
                     if (totalCost > totalBudget) {
                         Toast.makeText(this@AdvertiserDashboardActivity,
@@ -295,6 +309,70 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    /**
+     * Validate YouTube URL and extract video ID
+     * Returns null if invalid, video ID if valid
+     */
+    private fun validateYouTubeUrl(url: String): String? {
+        if (!url.contains("youtube.com") && !url.contains("youtu.be")) {
+            return null // Not a YouTube URL
+        }
+        
+        val patterns = listOf(
+            Regex("[?&]v=([a-zA-Z0-9_-]{11})"),
+            Regex("youtu\\.be/([a-zA-Z0-9_-]{11})"),
+            Regex("youtube\\.com/embed/([a-zA-Z0-9_-]{11})"),
+            Regex("youtube\\.com/v/([a-zA-Z0-9_-]{11})")
+        )
+        
+        for (pattern in patterns) {
+            val match = pattern.find(url)
+            if (match != null && match.groupValues[1].length == 11) {
+                return match.groupValues[1]
+            }
+        }
+        
+        return null // Invalid YouTube URL format
+    }
+
+    /**
+     * Validate URL based on task type
+     * Returns error message if invalid, null if valid
+     */
+    private fun validateTaskUrl(taskType: String, url: String): String? {
+        when (taskType) {
+            "WATCH_VIDEO" -> {
+                if (url.contains("youtube.com") || url.contains("youtu.be")) {
+                    val videoId = validateYouTubeUrl(url)
+                    if (videoId == null) {
+                        return "Invalid YouTube URL format. Please use a valid YouTube video URL (e.g., https://youtube.com/watch?v=VIDEO_ID)"
+                    }
+                    // Check for common invalid video IDs
+                    if (videoId == "AAAAAAAAAAA" || videoId.all { it == '0' }) {
+                        return "Invalid video ID. Please check the YouTube URL is correct"
+                    }
+                }
+                // For non-YouTube URLs, just check it's a valid URL format
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    return "URL must start with http:// or https://"
+                }
+            }
+            "VISIT_SITE", "SURVEY" -> {
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    return "URL must start with http:// or https://"
+                }
+            }
+            "LIKE_CONTENT", "SHARE_POST", "FOLLOW_ACCOUNT", "COMMENT" -> {
+                val allowedDomains = listOf("instagram.com", "tiktok.com", "twitter.com", "x.com", "facebook.com", "youtube.com")
+                val isAllowed = allowedDomains.any { url.contains(it) }
+                if (!isAllowed) {
+                    return "Social media link must be from Instagram, TikTok, Twitter/X, Facebook, or YouTube"
+                }
+            }
+        }
+        return null // Valid
     }
 
     private fun createCampaign(
@@ -528,6 +606,13 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                 val selectedType = taskTypeSpinner.selectedItem.toString()
 
                 if (title.isNotEmpty() && description.isNotEmpty() && reward > 0 && capacity > 0 && completionTime > 0 && linkUrl.isNotEmpty()) {
+                    // Validate URL based on task type
+                    val urlError = validateTaskUrl(selectedType, linkUrl)
+                    if (urlError != null) {
+                        Toast.makeText(this@AdvertiserDashboardActivity,
+                            urlError, Toast.LENGTH_LONG).show()
+                        return@setPositiveButton
+                    }
                     val totalCost = reward * capacity
                     createTask(title, description, reward, capacity, TaskType.valueOf(selectedType),
                         completionTime,
@@ -551,6 +636,13 @@ class AdvertiserDashboardActivity : AppCompatActivity() {
                 val selectedType = taskTypeSpinner.selectedItem.toString()
 
                 if (title.isNotEmpty() && description.isNotEmpty() && reward > 0 && capacity > 0 && completionTime > 0 && linkUrl.isNotEmpty()) {
+                    // Validate URL based on task type
+                    val urlError = validateTaskUrl(selectedType, linkUrl)
+                    if (urlError != null) {
+                        Toast.makeText(this@AdvertiserDashboardActivity,
+                            urlError, Toast.LENGTH_LONG).show()
+                        return@setNeutralButton
+                    }
                     val totalCost = reward * capacity
                     if (totalCost > totalBudget) {
                         Toast.makeText(this@AdvertiserDashboardActivity,
