@@ -937,13 +937,14 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
     private fun showVideoPlayer(task: Task, videoUrl: String) {
         // Inflate the video player dialog layout
         val dialogView = LayoutInflater.from(this).inflate(com.cointask.R.layout.dialog_video_player, null)
-        
+
         val videoTitleTextView = dialogView.findViewById<TextView>(com.cointask.R.id.tv_video_title)
         val closeBtn = dialogView.findViewById<android.widget.ImageButton>(com.cointask.R.id.btn_close)
         val loadingContainer = dialogView.findViewById<LinearLayout>(com.cointask.R.id.loading_container)
         val errorContainer = dialogView.findViewById<LinearLayout>(com.cointask.R.id.error_container)
         val errorMessageTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_error_message)
         val retryBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_retry)
+        val watchYoutubeBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_watch_youtube)
         val taskDescriptionTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_task_description)
         val cancelBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_cancel)
         val completeBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_complete)
@@ -952,15 +953,21 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         // Set initial UI
         videoTitleTextView.text = task.title
         taskDescriptionTv.text = "🎬 Watch for ${task.completionTimeSeconds} seconds to earn ${task.rewardCoins} coins"
-        
+
         // Track video playback state
         var videoStarted = false
         var videoError = false
         var videoEnded = false
+        var currentErrorCode: String? = null
 
-        // Create WebView for video playback
+        // Create WebView for video playback with proper LayoutParams
         val webView = android.webkit.WebView(this)
-        webviewContainer.addView(webView)
+        webviewContainer.addView(webView, 
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
 
         // Setup video player with VideoPlayerHelper
         val config = VideoPlayerHelper.configure(videoUrl)
@@ -972,19 +979,27 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     android.util.Log.d("VideoPlayer", "Video started playing")
                     videoStarted = true
                     videoError = false
+                    currentErrorCode = null
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
                         errorContainer.visibility = android.view.View.GONE
+                        watchYoutubeBtn.visibility = android.view.View.GONE
                     }
                 }
 
                 override fun onVideoError(errorCode: String, message: String) {
                     android.util.Log.e("VideoPlayer", "Video error: $errorCode - $message")
                     videoError = true
+                    currentErrorCode = errorCode
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
                         errorContainer.visibility = android.view.View.VISIBLE
                         errorMessageTv.text = "⚠️ $message\n\n(Error: $errorCode)"
+                        // Always show "Open Externally" button for any error
+                        watchYoutubeBtn.post {
+                            watchYoutubeBtn.visibility = android.view.View.VISIBLE
+                            watchYoutubeBtn.text = "Open Video Externally"
+                        }
                     }
                 }
 
@@ -1003,48 +1018,72 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             .build()
 
         VideoPlayerHelper.setupWebView(webView, config)
-        
+
         // Create dialog first so we can reference it in button clicks
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(false)
             .create()
-        
+
         // Setup retry button
         retryBtn.setOnClickListener {
             loadingContainer.visibility = android.view.View.VISIBLE
             errorContainer.visibility = android.view.View.GONE
+            watchYoutubeBtn.visibility = android.view.View.GONE
             videoError = false
+            currentErrorCode = null
             VideoPlayerHelper.retry(webView)
         }
-        
+
+        // Setup Watch externally button - opens video in external app (YouTube, browser, etc.)
+        watchYoutubeBtn.setOnClickListener {
+            try {
+                val externalUrl = VideoPlayerHelper.getExternalUrl(videoUrl)
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(externalUrl))
+                startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback to browser if no app available
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(videoUrl))
+                    startActivity(intent)
+                } catch (e2: Exception) {
+                    Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
         // Setup close button
         closeBtn.setOnClickListener {
             dialog.dismiss()
         }
-        
+
         // Setup cancel button
         cancelBtn.setOnClickListener {
             dialog.dismiss()
         }
-        
-        // Setup complete button - will be enabled when video ends
+
+        // Setup complete button - will be enabled when video ends or starts playing
         completeBtn.setOnClickListener {
             if (videoEnded || (videoStarted && !videoError)) {
                 dialog.dismiss()
                 completeTask(task)
             }
         }
-        
+
         dialog.show()
-        
+
         // Hide loading after a timeout if video hasn't started
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         handler.postDelayed({
             if (loadingContainer.visibility == android.view.View.VISIBLE && !videoStarted && !videoError) {
                 loadingContainer.visibility = android.view.View.GONE
+                // Enable complete button as fallback - user watched long enough waiting
+                completeBtn.isEnabled = true
+                completeBtn.text = "Claim ${task.rewardCoins} 🪙"
             }
-        }, 10000) // 10 seconds timeout
+        }, 15000) // 15 seconds timeout
     }
 
     /**

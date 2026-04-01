@@ -96,15 +96,30 @@
                     android:gravity="center"
                     android:padding="16dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_retry"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Retry"
-                    android:layout_marginTop="16dp"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:textColor="@android:color/white"
-                    app:strokeColor="@android:color/white" />
+                    android:orientation="horizontal"
+                    android:layout_marginTop="16dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_retry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Retry"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:textColor="@android:color/white"
+                        app:strokeColor="@android:color/white" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_watch_youtube"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Open Video Externally"
+                        android:layout_marginStart="8dp"
+                        android:visibility="gone"
+                        style="@style/Widget.Material3.Button" />
+                </LinearLayout>
             </LinearLayout>
         </FrameLayout>
 
