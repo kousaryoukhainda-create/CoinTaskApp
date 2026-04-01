@@ -594,8 +594,6 @@ object VideoPlayerHelper {
             loadWithOverviewMode = true
             layoutAlgorithm = android.webkit.WebSettings.LayoutAlgorithm.NORMAL
             setSupportZoom(false)
-            // Enable third-party cookies for embedded players
-            setAppCacheEnabled(true)
         }
 
         // Clear any existing data for fresh load
@@ -755,5 +753,12 @@ object VideoPlayerHelper {
      */
     fun configure(url: String): VideoPlayerConfig.Builder {
         return VideoPlayerConfig.Builder(url)
+    }
+
+    /**
+     * Gets the external app URL for opening videos externally
+     */
+    fun getExternalUrl(url: String): String {
+        return VideoProvider.getExternalUrl(url)
     }
 }
