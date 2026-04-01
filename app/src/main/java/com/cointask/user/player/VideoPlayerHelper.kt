@@ -130,12 +130,18 @@ sealed class VideoProvider {
                                                 100: 'Video not found or removed',
                                                 101: 'Video cannot be played in embedded player',
                                                 150: 'Video cannot be played in embedded player',
-                                                152: 'Video owner restricts embedding'
+                                                152: 'Embedding restricted - Opening in YouTube app'
                                             };
-                                            VideoPlayerInterface.onVideoError(
-                                                event.data.toString(),
-                                                messages[event.data] || 'Playback error: ' + event.data
-                                            );
+                                            var errorCode = event.data.toString();
+                                            var errorMsg = messages[event.data] || 'Playback error: ' + event.data;
+                                            
+                                            // For error 152 (embedding restricted), signal to open externally
+                                            if (event.data === 152) {
+                                                VideoPlayerInterface.onVideoError(errorCode, errorMsg);
+                                                VideoPlayerInterface.onOpenExternally();
+                                            } else {
+                                                VideoPlayerInterface.onVideoError(errorCode, errorMsg);
+                                            }
                                         }
                                     }
                                 }
@@ -504,13 +510,14 @@ sealed class VideoProvider {
 
         /**
          * Gets the external app URL for opening videos externally
+         * Returns HTTPS URL that can be opened by YouTube app or browser
          */
         fun getExternalUrl(url: String): String {
             val provider = fromUrl(url)
             return when (provider) {
                 is YouTube -> {
                     val videoId = YouTube.extractVideoId(url)
-                    if (videoId != null) "vnd.youtube:$videoId" else url
+                    if (videoId != null) "https://youtu.be/$videoId" else url
                 }
                 is Vimeo -> url
                 is Dailymotion -> url
@@ -527,6 +534,7 @@ interface VideoPlaybackListener {
     fun onVideoStarted()
     fun onVideoEnded()
     fun onVideoError(errorCode: String, message: String)
+    fun onOpenExternally() {}
 }
 
 /**
@@ -621,6 +629,12 @@ object VideoPlayerHelper {
                 fun onVideoEnded() {
                     Log.d(TAG, "✓ Video ended")
                     listener.onVideoEnded()
+                }
+
+                @JavascriptInterface
+                fun onOpenExternally() {
+                    Log.d(TAG, "Opening video externally")
+                    listener.onOpenExternally()
                 }
             }, "VideoPlayerInterface")
         }

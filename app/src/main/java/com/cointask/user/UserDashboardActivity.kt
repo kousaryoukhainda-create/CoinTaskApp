@@ -1014,6 +1014,14 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                         completeBtn.text = "Claim ${task.rewardCoins} 🪙"
                     }
                 }
+
+                override fun onOpenExternally() {
+                    android.util.Log.d("VideoPlayer", "Opening video externally due to embed restriction")
+                    // Automatically open the video in external app when embedding is restricted
+                    watchYoutubeBtn.post {
+                        watchYoutubeBtn.performClick()
+                    }
+                }
             })
             .build()
 
@@ -1038,12 +1046,31 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         // Setup Watch externally button - opens video in external app (YouTube, browser, etc.)
         watchYoutubeBtn.setOnClickListener {
             try {
-                val externalUrl = VideoPlayerHelper.getExternalUrl(videoUrl)
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse(externalUrl))
-                startActivity(intent)
+                val videoId = VideoProvider.YouTube.extractVideoId(videoUrl)
+                if (videoId != null) {
+                    // Try to open in YouTube app first
+                    val youtubeIntent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("vnd.youtube:$videoId"))
+                    youtubeIntent.setPackage("com.google.android.youtube")
+                    startActivity(youtubeIntent)
+                } else {
+                    // Fallback to browser with original URL
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(videoUrl))
+                    startActivity(intent)
+                }
+            } catch (e: android.content.ActivityNotFoundException) {
+                // YouTube app not installed, open in browser
+                try {
+                    val externalUrl = VideoPlayerHelper.getExternalUrl(videoUrl)
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(externalUrl))
+                    startActivity(intent)
+                } catch (e2: Exception) {
+                    Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
-                // Fallback to browser if no app available
+                // Any other error, try browser with original URL
                 try {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                         android.net.Uri.parse(videoUrl))
