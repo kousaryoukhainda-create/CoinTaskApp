@@ -29,6 +29,7 @@ import com.cointask.databinding.DialogWithdrawalBinding
 import com.cointask.user.adapters.TaskAdapter
 import com.cointask.user.player.VideoPlayerHelper
 import com.cointask.user.player.VideoPlaybackListener
+import com.cointask.user.player.VideoProvider
 import com.cointask.utils.PasswordUtils
 import com.cointask.utils.PreferencesManager
 import kotlinx.coroutines.flow.collectLatest
