@@ -1036,12 +1036,13 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         VideoPlayerHelper.setupWebView(webView, config)
 
         var externalWatchStartTime: Long = 0
-        var adGracePeriodMs: Long = 0
+        val adGracePeriodMs: Long = 20000
+        var periodicHandler: android.os.Handler? = null
+        var periodicRunnable: Runnable? = null
 
         fun startExternalWatch() {
             isExternalWatch = true
             externalWatchStartTime = System.currentTimeMillis()
-            adGracePeriodMs = 20000
             watchTimerTv.post {
                 watchTimerTv.text = "Watch video in YouTube app..."
             }
@@ -1052,51 +1053,43 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         }
 
         fun startPeriodicCheck() {
-            externalWatchTimer?.cancel()
-            externalWatchTimer = object : android.os.CountDownTimer(86400000L, 1000) {
-                override fun onTick(millisUntilFinished: Long) {
-                    if (!isExternalWatch) {
-                        cancel()
-                        return
-                    }
+            stopAllTimers()
+            periodicHandler = android.os.Handler(android.os.Looper.getMainLooper())
+            periodicRunnable = object : Runnable {
+                override fun run() {
+                    if (!isExternalWatch) return
+                    
                     val timeAway = System.currentTimeMillis() - externalWatchStartTime
                     val effectiveWatchTime = (timeAway - adGracePeriodMs).coerceAtLeast(0)
-                    val currentElapsed = (effectiveWatchTime / 1000).toInt()
+                    watchTimeElapsed = (effectiveWatchTime / 1000).toInt()
                     
-                    watchTimeElapsed = currentElapsed
                     val progress = (watchTimeElapsed * 100 / requiredWatchTime).coerceIn(0, 100)
                     watchProgressBar.progress = progress
                     
                     if (watchTimeElapsed >= requiredWatchTime) {
-                        watchTimerTv.post {
-                            watchTimerTv.text = "✅ Watch complete! Tap Claim"
-                        }
-                        taskDescriptionTv.post {
-                            taskDescriptionTv.text = "✅ Claim your ${task.rewardCoins} coins!"
-                        }
+                        watchTimerTv.text = "✅ Watch complete! Tap Claim"
+                        taskDescriptionTv.text = "✅ Claim your ${task.rewardCoins} coins!"
                         videoStarted = true
                         videoEnded = true
-                        completeBtn.post {
-                            completeBtn.isEnabled = true
-                            completeBtn.text = "Claim ${task.rewardCoins} 🪙"
-                        }
+                        completeBtn.isEnabled = true
+                        completeBtn.text = "Claim ${task.rewardCoins} 🪙"
+                        stopAllTimers()
                     } else {
                         val remaining = requiredWatchTime - watchTimeElapsed
-                        watchTimerTv.post {
-                            watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
-                        }
-                        taskDescriptionTv.post {
-                            taskDescriptionTv.text = "⏳ Return to claim. Need $remaining more seconds"
-                        }
+                        watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
+                        taskDescriptionTv.text = "⏳ Return to claim. Need $remaining more seconds"
+                        periodicHandler?.postDelayed(this, 1000)
                     }
                 }
-
-                override fun onFinish() {}
-            }.start()
+            }
+            periodicHandler?.post(periodicRunnable!!)
         }
 
         fun stopAllTimers() {
             isExternalWatch = false
+            periodicRunnable?.let { periodicHandler?.removeCallbacks(it) }
+            periodicRunnable = null
+            periodicHandler = null
             externalWatchTimer?.cancel()
             externalWatchTimer = null
         }
