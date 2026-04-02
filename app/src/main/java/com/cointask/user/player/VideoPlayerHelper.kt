@@ -596,7 +596,6 @@ object VideoPlayerHelper {
             setAllowFileAccessFromFileURLs(false)
             blockNetworkLoads = false
             loadsImagesAutomatically = true
-            needInitialFocus = false
         }
 
         // Clear any existing data for fresh load
