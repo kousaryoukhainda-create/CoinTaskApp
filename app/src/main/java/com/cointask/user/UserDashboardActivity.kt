@@ -984,10 +984,6 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     videoStarted = true
                     videoError = false
                     currentErrorCode = null
-                    isExternalWatch = false
-                    watchRunnable?.let { watchHandler?.removeCallbacks(it) }
-                    watchRunnable = null
-                    watchHandler = null
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
                         errorContainer.visibility = android.view.View.GONE
@@ -1015,10 +1011,6 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                 override fun onVideoEnded() {
                     android.util.Log.d("VideoPlayer", "Video ended")
                     videoEnded = true
-                    isExternalWatch = false
-                    watchRunnable?.let { watchHandler?.removeCallbacks(it) }
-                    watchRunnable = null
-                    watchHandler = null
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
                         externalWatchContainer.visibility = android.view.View.GONE
@@ -1118,7 +1110,7 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         // Hide loading after a timeout if video hasn't started
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         handler.postDelayed({
-            if (loadingContainer.visibility == android.view.View.VISIBLE && !videoStarted && !videoError && !isExternalWatch) {
+            if (loadingContainer.visibility == android.view.View.VISIBLE && !videoStarted && !videoError) {
                 loadingContainer.visibility = android.view.View.GONE
                 completeBtn.isEnabled = true
                 completeBtn.text = "Claim ${task.rewardCoins} 🪙"
