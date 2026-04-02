@@ -1053,7 +1053,7 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
 
         fun startPeriodicCheck() {
             externalWatchTimer?.cancel()
-            externalWatchTimer = object : android.os.CountDownTimer(Long.MAX_VALUE, 1000) {
+            externalWatchTimer = object : android.os.CountDownTimer(86400000L, 1000) {
                 override fun onTick(millisUntilFinished: Long) {
                     if (!isExternalWatch) {
                         cancel()
