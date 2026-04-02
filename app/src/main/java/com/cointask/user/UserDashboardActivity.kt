@@ -936,7 +936,6 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
      * Uses dynamic VideoPlayerHelper to support multiple video providers
      */
     private fun showVideoPlayer(task: Task, videoUrl: String) {
-        // Inflate the video player dialog layout
         val dialogView = LayoutInflater.from(this).inflate(com.cointask.R.layout.dialog_video_player, null)
 
         val videoTitleTextView = dialogView.findViewById<TextView>(com.cointask.R.id.tv_video_title)
@@ -950,18 +949,22 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         val cancelBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_cancel)
         val completeBtn = dialogView.findViewById<com.google.android.material.button.MaterialButton>(com.cointask.R.id.btn_complete)
         val webviewContainer = dialogView.findViewById<FrameLayout>(com.cointask.R.id.webview_video)
+        val externalWatchContainer = dialogView.findViewById<LinearLayout>(com.cointask.R.id.external_watch_container)
+        val watchTimerTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_watch_timer)
+        val watchProgressBar = dialogView.findViewById<android.widget.ProgressBar>(com.cointask.R.id.watch_progress_bar)
 
-        // Set initial UI
         videoTitleTextView.text = task.title
         taskDescriptionTv.text = "🎬 Watch for ${task.completionTimeSeconds} seconds to earn ${task.rewardCoins} coins"
 
-        // Track video playback state
         var videoStarted = false
         var videoError = false
         var videoEnded = false
         var currentErrorCode: String? = null
+        var isExternalWatch = false
+        var watchTimeElapsed = 0
+        var externalWatchTimer: android.os.CountDownTimer? = null
+        val requiredWatchTime = task.completionTimeSeconds
 
-        // Create WebView for video playback with proper LayoutParams
         val webView = android.webkit.WebView(this)
         webviewContainer.addView(webView, 
             FrameLayout.LayoutParams(
@@ -970,7 +973,6 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             )
         )
 
-        // Setup video player with VideoPlayerHelper
         val config = VideoPlayerHelper.configure(videoUrl)
             .autoPlay(true)
             .enableTracking(true)
@@ -981,9 +983,11 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     videoStarted = true
                     videoError = false
                     currentErrorCode = null
+                    stopAllTimers()
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
                         errorContainer.visibility = android.view.View.GONE
+                        externalWatchContainer.visibility = android.view.View.GONE
                         watchYoutubeBtn.visibility = android.view.View.GONE
                     }
                 }
@@ -996,19 +1000,23 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                         loadingContainer.visibility = android.view.View.GONE
                         errorContainer.visibility = android.view.View.VISIBLE
                         errorMessageTv.text = "⚠️ $message\n\n(Error: $errorCode)"
-                        // Always show "Open Externally" button for any error
                         watchYoutubeBtn.post {
                             watchYoutubeBtn.visibility = android.view.View.VISIBLE
-                            watchYoutubeBtn.text = "Open Video Externally"
+                            watchYoutubeBtn.text = "Open Video in YouTube App"
                         }
+                    }
+                    if (errorCode == "152") {
+                        android.util.Log.d("VideoPlayer", "Error 152 - will prompt to open in YouTube app")
                     }
                 }
 
                 override fun onVideoEnded() {
                     android.util.Log.d("VideoPlayer", "Video ended")
                     videoEnded = true
+                    stopAllTimers()
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
+                        externalWatchContainer.visibility = android.view.View.GONE
                     }
                     completeBtn.post {
                         completeBtn.isEnabled = true
@@ -1018,7 +1026,6 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
 
                 override fun onOpenExternally() {
                     android.util.Log.d("VideoPlayer", "Opening video externally due to embed restriction")
-                    // Automatically open the video in external app when embedding is restricted
                     watchYoutubeBtn.post {
                         watchYoutubeBtn.performClick()
                     }
@@ -1028,90 +1035,175 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
 
         VideoPlayerHelper.setupWebView(webView, config)
 
-        // Create dialog first so we can reference it in button clicks
+        var externalWatchStartTime: Long = 0
+        var adGracePeriodMs: Long = 0
+
+        fun startExternalWatch() {
+            isExternalWatch = true
+            externalWatchStartTime = System.currentTimeMillis()
+            adGracePeriodMs = 20000
+            watchTimerTv.post {
+                watchTimerTv.text = "Watch video in YouTube app..."
+            }
+            taskDescriptionTv.post {
+                taskDescriptionTv.text = "⏳ Timer will track when you return"
+            }
+            startPeriodicCheck()
+        }
+
+        fun startPeriodicCheck() {
+            externalWatchTimer?.cancel()
+            externalWatchTimer = object : android.os.CountDownTimer(Long.MAX_VALUE, 1000) {
+                override fun onTick(millisUntilFinished: Long) {
+                    if (!isExternalWatch) {
+                        cancel()
+                        return
+                    }
+                    val timeAway = System.currentTimeMillis() - externalWatchStartTime
+                    val effectiveWatchTime = (timeAway - adGracePeriodMs).coerceAtLeast(0)
+                    val currentElapsed = (effectiveWatchTime / 1000).toInt()
+                    
+                    watchTimeElapsed = currentElapsed
+                    val progress = (watchTimeElapsed * 100 / requiredWatchTime).coerceIn(0, 100)
+                    watchProgressBar.progress = progress
+                    
+                    if (watchTimeElapsed >= requiredWatchTime) {
+                        watchTimerTv.post {
+                            watchTimerTv.text = "✅ Watch complete! Tap Claim"
+                        }
+                        taskDescriptionTv.post {
+                            taskDescriptionTv.text = "✅ Claim your ${task.rewardCoins} coins!"
+                        }
+                        videoStarted = true
+                        videoEnded = true
+                        completeBtn.post {
+                            completeBtn.isEnabled = true
+                            completeBtn.text = "Claim ${task.rewardCoins} 🪙"
+                        }
+                    } else {
+                        val remaining = requiredWatchTime - watchTimeElapsed
+                        watchTimerTv.post {
+                            watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
+                        }
+                        taskDescriptionTv.post {
+                            taskDescriptionTv.text = "⏳ Return to claim. Need $remaining more seconds"
+                        }
+                    }
+                }
+
+                override fun onFinish() {}
+            }.start()
+        }
+
+        fun stopAllTimers() {
+            isExternalWatch = false
+            externalWatchTimer?.cancel()
+            externalWatchTimer = null
+        }
+
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(false)
             .create()
 
-        // Setup retry button
         retryBtn.setOnClickListener {
             loadingContainer.visibility = android.view.View.VISIBLE
             errorContainer.visibility = android.view.View.GONE
+            externalWatchContainer.visibility = android.view.View.GONE
             watchYoutubeBtn.visibility = android.view.View.GONE
             videoError = false
             currentErrorCode = null
+            stopAllTimers()
             VideoPlayerHelper.retry(webView)
         }
 
-        // Setup Watch externally button - opens video in external app (YouTube, browser, etc.)
         watchYoutubeBtn.setOnClickListener {
-            try {
-                val videoId = VideoProvider.YouTube.extractVideoId(videoUrl)
-                if (videoId != null) {
-                    // Try to open in YouTube app first
+            val videoId = VideoProvider.YouTube.extractVideoId(videoUrl)
+            if (videoId != null) {
+                try {
                     val youtubeIntent = android.content.Intent(android.content.Intent.ACTION_VIEW,
                         android.net.Uri.parse("vnd.youtube:$videoId"))
                     youtubeIntent.setPackage("com.google.android.youtube")
+                    
+                    externalWatchContainer.post {
+                        externalWatchContainer.visibility = android.view.View.VISIBLE
+                        errorContainer.visibility = android.view.View.GONE
+                    }
+                    
+                    startExternalWatch()
                     startActivity(youtubeIntent)
-                } else {
-                    // Fallback to browser with original URL
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(videoUrl))
-                    startActivity(intent)
+                } catch (e: android.content.ActivityNotFoundException) {
+                    try {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.youtube.com/watch?v=$videoId"))
+                        externalWatchContainer.post {
+                            externalWatchContainer.visibility = android.view.View.VISIBLE
+                            errorContainer.visibility = android.view.View.GONE
+                        }
+                        startExternalWatch()
+                        startActivity(intent)
+                    } catch (e2: Exception) {
+                        Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
+                        externalWatchContainer.post {
+                            externalWatchContainer.visibility = android.view.View.GONE
+                        }
+                    }
+                } catch (e: Exception) {
+                    try {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.youtube.com/watch?v=$videoId"))
+                        externalWatchContainer.post {
+                            externalWatchContainer.visibility = android.view.View.VISIBLE
+                            errorContainer.visibility = android.view.View.GONE
+                        }
+                        startExternalWatch()
+                        startActivity(intent)
+                    } catch (e2: Exception) {
+                        Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
+                        externalWatchContainer.post {
+                            externalWatchContainer.visibility = android.view.View.GONE
+                        }
+                    }
                 }
-            } catch (e: android.content.ActivityNotFoundException) {
-                // YouTube app not installed, open in browser
-                try {
-                    val externalUrl = VideoPlayerHelper.getExternalUrl(videoUrl)
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(externalUrl))
-                    startActivity(intent)
-                } catch (e2: Exception) {
-                    Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                // Any other error, try browser with original URL
-                try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(videoUrl))
-                    startActivity(intent)
-                } catch (e2: Exception) {
-                    Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
-                }
+            } else {
+                Toast.makeText(this@UserDashboardActivity, "Invalid video URL", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // Setup close button
+        dialog.setOnDismissListener {
+            stopAllTimers()
+        }
+
         closeBtn.setOnClickListener {
+            stopAllTimers()
             dialog.dismiss()
         }
 
-        // Setup cancel button
         cancelBtn.setOnClickListener {
+            stopAllTimers()
             dialog.dismiss()
         }
 
-        // Setup complete button - will be enabled when video ends or starts playing
         completeBtn.setOnClickListener {
-            if (videoEnded || (videoStarted && !videoError)) {
+            if (videoEnded || (videoStarted && !videoError) || (isExternalWatch && watchTimeElapsed >= requiredWatchTime)) {
+                stopAllTimers()
                 dialog.dismiss()
                 completeTask(task)
+            } else if (isExternalWatch) {
+                Toast.makeText(this, "Please wait for $requiredWatchTime seconds", Toast.LENGTH_SHORT).show()
             }
         }
 
         dialog.show()
 
-        // Hide loading after a timeout if video hasn't started
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         handler.postDelayed({
-            if (loadingContainer.visibility == android.view.View.VISIBLE && !videoStarted && !videoError) {
+            if (loadingContainer.visibility == android.view.View.VISIBLE && !videoStarted && !videoError && !isExternalWatch) {
                 loadingContainer.visibility = android.view.View.GONE
-                // Enable complete button as fallback - user watched long enough waiting
                 completeBtn.isEnabled = true
                 completeBtn.text = "Claim ${task.rewardCoins} 🪙"
             }
-        }, 15000) // 15 seconds timeout
+        }, 15000)
     }
 
     /**
