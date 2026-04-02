@@ -62,75 +62,56 @@ sealed class VideoProvider {
         override fun generateEmbedHtml(videoId: String, autoplay: Boolean, enableTracking: Boolean): String {
             val autoplayParam = if (autoplay) "1" else "0"
             
-            // Simpler tracking that doesn't rely on YouTube IFrame API
             val trackingScript = if (enableTracking) """
                 <script>
                     var videoStarted = false;
                     var videoError = false;
-                    var playerState = -1;
+                    var trackingEnabled = $enableTracking;
                     
-                    // Try to detect video playback via visibility and interaction
-                    function checkVideoPlayback() {
-                        if (videoError) return;
-                        
-                        var iframe = document.getElementById('video');
-                        if (!iframe) return;
-                        
-                        // Check if iframe is visible and active
-                        var rect = iframe.getBoundingClientRect();
-                        var isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-                        
-                        // Try to detect state via postMessage
-                        try {
-                            iframe.contentWindow.postMessage('{"event":"command","func":"getPlayerState"}', '*');
-                        } catch(e) {}
-                    }
+                    // YouTube embed loads successfully = video is accessible
+                    // User interaction with iframe = proxy for "started watching"
+                    var iframe = document.getElementById('video');
                     
-                    // Listen for postMessage responses from YouTube iframe
-                    window.addEventListener('message', function(e) {
-                        try {
-                            var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                            if (data && data.infoHTML5Player) {
-                                // Player is loaded and responsive
-                                if (!videoStarted && !videoError) {
-                                    videoStarted = true;
-                                    VideoPlayerInterface.onVideoStart();
-                                }
-                            }
-                        } catch(err) {}
-                    });
-                    
-                    // Check periodically for video state
-                    setInterval(checkVideoPlayback, 2000);
-                    
-                    // Track user interaction with iframe as proxy for "playing"
-                    document.getElementById('video').addEventListener('click', function() {
-                        if (!videoStarted && !videoError) {
+                    // On iframe load - YouTube player is ready
+                    iframe.addEventListener('load', function() {
+                        console.log('YouTube iframe loaded');
+                        // Consider video as "started" when iframe loads (embed is accessible)
+                        // User can now watch the video
+                        if (!videoStarted && !videoError && trackingEnabled) {
                             videoStarted = true;
                             VideoPlayerInterface.onVideoStart();
                         }
                     });
                     
-                    // Fallback: detect when iframe loads successfully
-                    document.getElementById('video').addEventListener('load', function() {
-                        if (!videoStarted && !videoError) {
-                            // Give it a moment to actually start playing
-                            setTimeout(function() {
-                                if (!videoStarted && !videoError) {
-                                    videoStarted = true;
-                                    VideoPlayerInterface.onVideoStart();
-                                }
-                            }, 2000);
+                    // Also track clicks on the iframe as user engagement
+                    iframe.addEventListener('click', function() {
+                        console.log('User interacted with video');
+                        if (!videoStarted && !videoError && trackingEnabled) {
+                            videoStarted = true;
+                            VideoPlayerInterface.onVideoStart();
                         }
                     });
                     
-                    // Fallback timeout for loading
-                    setTimeout(function() {
-                        if (!videoStarted && !videoError) {
-                            videoStarted = true; // Assume it started
-                            VideoPlayerInterface.onVideoStart();
+                    // Additional: track when user taps play button area
+                    document.addEventListener('click', function(e) {
+                        if (e.target === iframe || iframe.contains(e.target)) {
+                            if (!videoStarted && !videoError && trackingEnabled) {
+                                videoStarted = true;
+                                VideoPlayerInterface.onVideoStart();
+                            }
                         }
-                    }, 8000);
+                    });
+                    
+                    // Fallback: auto-enable after delay if iframe loaded
+                    setTimeout(function() {
+                        if (!videoStarted && !videoError && trackingEnabled) {
+                            var iframe = document.getElementById('video');
+                            if (iframe && iframe.src && iframe.src.length > 0) {
+                                videoStarted = true;
+                                VideoPlayerInterface.onVideoStart();
+                            }
+                        }
+                    }, 5000);
                 </script>
             """ else ""
 
