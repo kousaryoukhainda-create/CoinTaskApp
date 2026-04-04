@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.content.ActivityNotFoundException
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
