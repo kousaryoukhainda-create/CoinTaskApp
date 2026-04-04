@@ -4,7 +4,8 @@ import android.animation.ValueAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Handler
+import android.content.ActivityNotFoundException
+import android.os.Bundle
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
@@ -1107,7 +1108,7 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             }
         }
 
-        private fun startExternalWatchTimer(videoId: String) {
+        fun startExternalWatchTimer(videoId: String) {
             externalWatchContainer.visibility = View.VISIBLE
             errorContainer.visibility = View.GONE
             isExternalWatch = true
