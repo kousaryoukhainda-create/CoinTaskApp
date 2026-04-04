@@ -1062,14 +1062,24 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
                     android.util.Log.e("VideoPlayer", "Video error: $errorCode - $message")
                     videoError = true
                     currentErrorCode = errorCode
+                    
                     loadingContainer.post {
                         loadingContainer.visibility = android.view.View.GONE
                         errorContainer.visibility = android.view.View.VISIBLE
-                        errorMessageTv.text = "⚠️ $message\n\n(Error: $errorCode)"
-                        // Always show "Open Externally" button for any error
+                        
+                        // Show YouTube-specific message for unavailable videos
+                        val errorText = if (errorCode == "152-4" || message.contains("unavailable") || 
+                            message.contains("restricted") || message.contains("private")) {
+                            "⚠️ This video is unavailable in the app\n\nIt may be private, age-restricted, or removed.\n\nTap 'Watch on YouTube' below to open in YouTube app/browser."
+                        } else {
+                            "⚠️ $message\n\n(Error: $errorCode)"
+                        }
+                        errorMessageTv.text = errorText
+                        
+                        // Show the Watch on YouTube button prominently
                         watchYoutubeBtn.post {
                             watchYoutubeBtn.visibility = android.view.View.VISIBLE
-                            watchYoutubeBtn.text = "Open Video Externally"
+                            watchYoutubeBtn.text = "📺 Watch on YouTube"
                         }
                     }
                 }

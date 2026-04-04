@@ -68,15 +68,62 @@ sealed class VideoProvider {
                     var videoError = false;
                     var trackingEnabled = $enableTracking;
                     
-                    // YouTube embed loads successfully = video is accessible
-                    // User interaction with iframe = proxy for "started watching"
                     var iframe = document.getElementById('video');
+                    
+                    // Check for YouTube error states (unavailable video, age restriction, etc.)
+                    function checkYouTubeError() {
+                        try {
+                            var doc = iframe.contentDocument || iframe.contentWindow.document;
+                            var body = doc.body;
+                            
+                            // Check for YouTube error message in the iframe content
+                            var pageText = body.innerText || body.textContent || '';
+                            
+                            // Check for common YouTube error messages
+                            if (pageText.indexOf('video unavailable') !== -1 ||
+                                pageText.indexOf('This video is unavailable') !== -1 ||
+                                pageText.indexOf('Sign in to confirm your age') !== -1 ||
+                                pageText.indexOf('age-restricted') !== -1 ||
+                                pageText.indexOf('private video') !== -1 ||
+                                pageText.indexOf('not available') !== -1 ||
+                                body.querySelector('.ytp-error')) {
+                                
+                                console.log('YouTube embed error detected: video unavailable or restricted');
+                                if (!videoError && trackingEnabled) {
+                                    videoError = true;
+                                    VideoPlayerInterface.onVideoError('152-4', 'Video unavailable - click "Watch on YouTube" to open externally');
+                                }
+                                return true;
+                            }
+                        } catch (e) {
+                            // Cross-origin: can't access iframe content, may need external mode
+                            console.log('Cannot access iframe content (cross-origin): ' + e.message);
+                        }
+                        return false;
+                    }
+                    
+                    // Poll for error state (YouTube embed loads but shows error)
+                    var errorCheckInterval = setInterval(function() {
+                        if (!videoStarted && !videoError && trackingEnabled) {
+                            checkYouTubeError();
+                        } else {
+                            clearInterval(errorCheckInterval);
+                        }
+                    }, 2000);
+                    
+                    // Stop checking after 10 seconds
+                    setTimeout(function() {
+                        clearInterval(errorCheckInterval);
+                    }, 10000);
                     
                     // On iframe load - YouTube player is ready
                     iframe.addEventListener('load', function() {
                         console.log('YouTube iframe loaded');
-                        // Consider video as "started" when iframe loads (embed is accessible)
-                        // User can now watch the video
+                        // Check for error immediately after load
+                        setTimeout(function() {
+                            checkYouTubeError();
+                        }, 1000);
+                        
                         if (!videoStarted && !videoError && trackingEnabled) {
                             videoStarted = true;
                             VideoPlayerInterface.onVideoStart();
@@ -86,6 +133,7 @@ sealed class VideoProvider {
                     // Also track clicks on the iframe as user engagement
                     iframe.addEventListener('click', function() {
                         console.log('User interacted with video');
+                        checkYouTubeError();
                         if (!videoStarted && !videoError && trackingEnabled) {
                             videoStarted = true;
                             VideoPlayerInterface.onVideoStart();
@@ -95,6 +143,7 @@ sealed class VideoProvider {
                     // Additional: track when user taps play button area
                     document.addEventListener('click', function(e) {
                         if (e.target === iframe || iframe.contains(e.target)) {
+                            checkYouTubeError();
                             if (!videoStarted && !videoError && trackingEnabled) {
                                 videoStarted = true;
                                 VideoPlayerInterface.onVideoStart();
