@@ -48,6 +48,11 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
     private lateinit var database: AppDatabase
     private lateinit var preferencesManager: PreferencesManager
     private lateinit var taskAdapter: TaskAdapter
+    private var videoDialog: AlertDialog? = null
+    private var isExternalWatch = false
+    private var externalWatchStartTime: Long = 0
+    private var watchTimeElapsed = 0
+    private var requiredWatchTime = 0
     private var currentUserId = -1
     private var currentCoins = 0
     private var currentLevel = 1
@@ -66,6 +71,47 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         setupClickListeners()
         loadUserData()
         loadTasks()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isExternalWatch && videoDialog != null && videoDialog!!.isShowing) {
+            checkExternalWatchProgress()
+        }
+    }
+
+    private fun checkExternalWatchProgress() {
+        if (!isExternalWatch || externalWatchStartTime == 0L || requiredWatchTime == 0) return
+        
+        val timeAway = System.currentTimeMillis() - externalWatchStartTime
+        val adGracePeriodMs: Long = 7000
+        val effectiveWatchTime = if (timeAway > adGracePeriodMs) timeAway - adGracePeriodMs else 0
+        watchTimeElapsed = (effectiveWatchTime / 1000).toInt()
+        
+        if (watchTimeElapsed >= requiredWatchTime) {
+            val dialogView = videoDialog?.window?.decorView?.findViewById<View>(android.R.id.content)
+            if (dialogView != null) {
+                val watchTimerTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_watch_timer)
+                val taskDescriptionTv = dialogView.findViewById<TextView>(com.cointask.R.id.tv_task_description)
+                val completeBtn = dialogView.findViewById<Button>(com.cointask.R.id.btn_complete)
+                if (watchTimerTv != null) {
+                    watchTimerTv.post {
+                        watchTimerTv.text = "Watch complete! Tap Claim"
+                    }
+                }
+                if (taskDescriptionTv != null) {
+                    taskDescriptionTv.post {
+                        taskDescriptionTv.text = "Claim your coins!"
+                    }
+                }
+                if (completeBtn != null) {
+                    completeBtn.post {
+                        completeBtn.isEnabled = true
+                        completeBtn.text = "Claim"
+                    }
+                }
+            }
+        }
     }
 
     private fun setupRecyclerView() {
@@ -968,16 +1014,16 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         var videoError = false
         var videoEnded = false
         var currentErrorCode: String? = null
-        var isExternalWatch = false
         var watchTimeElapsed = 0
-        val requiredWatchTime = task.completionTimeSeconds
+        var requiredWatchTime = task.completionTimeSeconds
         var externalWatchStartTime: Long = 0
-        val adGracePeriodMs: Long = 20000
+        val adGracePeriodMs: Long = 7000
         var watchHandler: android.os.Handler? = null
         var watchRunnable: java.lang.Runnable? = null
 
         fun stopWatchTimer() {
             isExternalWatch = false
+            externalWatchStartTime = 0
             watchRunnable?.let { watchHandler?.removeCallbacks(it) }
             watchRunnable = null
             watchHandler = null
@@ -1173,6 +1219,9 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         }
 
         dialog.show()
+
+        // Store dialog reference for onResume check
+        videoDialog = dialog
 
         // Hide loading after a timeout if video hasn't started
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
