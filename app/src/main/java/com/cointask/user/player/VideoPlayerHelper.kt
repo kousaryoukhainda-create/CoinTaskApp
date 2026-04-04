@@ -68,43 +68,18 @@ sealed class VideoProvider {
                     var videoError = false;
                     var trackingEnabled = $enableTracking;
                     
+                    // YouTube embed loads successfully = video is accessible
+                    // User interaction with iframe = proxy for "started watching"
                     var iframe = document.getElementById('video');
                     
-                    // Track iframe load - YouTube player ready
+                    // On iframe load - YouTube player is ready
                     iframe.addEventListener('load', function() {
                         console.log('YouTube iframe loaded');
-                        // Check if the iframe actually loaded YouTube content
-                        try {
-                            var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                            var hasError = iframeDoc.body.innerHTML.includes('Restricted') || 
-                                          iframeDoc.body.innerHTML.includes('not available') ||
-                                          iframeDoc.body.innerHTML.includes('blocked');
-                            if (hasError) {
-                                console.log('YouTube embed appears blocked');
-                                if (!videoError && trackingEnabled) {
-                                    videoError = true;
-                                    VideoPlayerInterface.onVideoError('EMBED_BLOCKED', 'Video cannot be played inline. Tap "Open Externally" to watch.');
-                                }
-                            } else if (!videoStarted && !videoError && trackingEnabled) {
-                                videoStarted = true;
-                                VideoPlayerInterface.onVideoStart();
-                            }
-                        } catch(e) {
-                            // Cross-origin access denied - likely blocked
-                            console.log('YouTube embed blocked (cross-origin): ' + e.message);
-                            if (!videoError && trackingEnabled) {
-                                videoError = true;
-                                VideoPlayerInterface.onVideoError('EMBED_BLOCKED', 'Video cannot be played inline. Tap "Open Externally" to watch.');
-                            }
-                        }
-                    });
-                    
-                    // Track iframe error
-                    iframe.addEventListener('error', function() {
-                        console.log('YouTube iframe error');
-                        if (!videoError && trackingEnabled) {
-                            videoError = true;
-                            VideoPlayerInterface.onVideoError('IFRAME_ERROR', 'Failed to load video. Tap "Open Externally" to watch.');
+                        // Consider video as "started" when iframe loads (embed is accessible)
+                        // User can now watch the video
+                        if (!videoStarted && !videoError && trackingEnabled) {
+                            videoStarted = true;
+                            VideoPlayerInterface.onVideoStart();
                         }
                     });
                     
@@ -127,19 +102,16 @@ sealed class VideoProvider {
                         }
                     });
                     
-                    // Fallback timeout - if no video start after 8 seconds, likely blocked
+                    // Fallback: auto-enable after delay if iframe loaded
                     setTimeout(function() {
                         if (!videoStarted && !videoError && trackingEnabled) {
-                            videoError = true;
-                            VideoPlayerInterface.onVideoError('TIMEOUT', 'Video taking too long to load. Tap "Open Externally" to watch.');
-                        } else if (!videoStarted && trackingEnabled) {
                             var iframe = document.getElementById('video');
                             if (iframe && iframe.src && iframe.src.length > 0) {
                                 videoStarted = true;
                                 VideoPlayerInterface.onVideoStart();
                             }
                         }
-                    }, 8000);
+                    }, 5000);
                 </script>
             """ else ""
 
@@ -665,50 +637,11 @@ object VideoPlayerHelper {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 Log.d(TAG, "Page started: $url")
-                
-                // Check if URL indicates YouTube blocking
-                url?.let {
-                    if (it.contains("google.com/sorry") || it.contains("youtube.com/account") || 
-                        it.contains(" restricted") || it.contains("not-available")) {
-                        Log.w(TAG, "Detected YouTube blocking page: $url")
-                    }
-                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 Log.d(TAG, "Page finished: $url")
-                
-                // Check for error indicators in page content
-                view?.let { webView ->
-                    webView.evaluateJavascript(
-                        "(function() { return document.body ? document.body.innerText.substring(0, 200) : ''; })();",
-                        { bodyText ->
-                            if (bodyText != null && (bodyText.contains("restricted") || 
-                                bodyText.contains("not available") || 
-                                bodyText.contains("blocked from") ||
-                                bodyText.contains("This video is available"))) {
-                                Log.w(TAG, "Detected blocking content in page: $bodyText")
-                            }
-                        }
-                    )
-                }
-            }
-
-            override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
-                val url = request?.url?.toString() ?: return false
-                
-                // If user clicks on a link inside the video, open externally
-                if (url.contains("youtube.com/watch") || url.contains("youtu.be/")) {
-                    Log.d(TAG, "User navigated to: $url - will open in external app")
-                    view?.let { webView ->
-                        config.listener?.let { listener ->
-                            listener.onOpenExternally()
-                        }
-                    }
-                    return true
-                }
-                return false
             }
 
             override fun onReceivedError(
