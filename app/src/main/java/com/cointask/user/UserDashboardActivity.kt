@@ -1078,6 +1078,42 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             if (videoId != null) {
                 val youtubeUrl = "https://www.youtube.com/watch?v=$videoId"
 
+                fun startExternalWatchTimer(videoId: String) {
+                    externalWatchContainer.visibility = View.VISIBLE
+                    errorContainer.visibility = View.GONE
+                    isExternalWatch = true
+                    externalWatchStartTime = System.currentTimeMillis()
+                    watchTimeElapsed = 0
+                    watchTimerTv.text = "Watch video in YouTube app..."
+                    taskDescriptionTv.text = "Timer will track when you return"
+                    watchHandler = Handler(Looper.getMainLooper())
+                    watchRunnable = object : Runnable {
+                        override fun run() {
+                            if (!isExternalWatch) return
+                            val timeAway = System.currentTimeMillis() - externalWatchStartTime
+                            val effectiveWatchTime = if (timeAway > adGracePeriodMs) timeAway - adGracePeriodMs else 0
+                            watchTimeElapsed = (effectiveWatchTime / 1000).toInt()
+                            val progress = if (watchTimeElapsed * 100 / requiredWatchTime < 100) watchTimeElapsed * 100 / requiredWatchTime else 100
+                            watchProgressBar.progress = progress
+                            if (watchTimeElapsed >= requiredWatchTime) {
+                                watchTimerTv.text = "Watch complete! Tap Claim"
+                                taskDescriptionTv.text = "Claim your ${task.rewardCoins} coins!"
+                                videoStarted = true
+                                videoEnded = true
+                                completeBtn.isEnabled = true
+                                completeBtn.text = "Claim ${task.rewardCoins} 🪙"
+                                stopWatchTimer()
+                            } else {
+                                val remaining = requiredWatchTime - watchTimeElapsed
+                                watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
+                                taskDescriptionTv.text = "Return to claim. Need $remaining more seconds"
+                                watchHandler?.postDelayed(this, 1000)
+                            }
+                        }
+                    }
+                    watchHandler?.post(watchRunnable!!)
+                }
+
                 if (isYouTubeAppInstalled()) {
                     try {
                         val youtubeIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId"))
@@ -1107,42 +1143,6 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             } else {
                 Toast.makeText(this@UserDashboardActivity, "Invalid video URL", Toast.LENGTH_SHORT).show()
             }
-        }
-
-        fun startExternalWatchTimer(videoId: String) {
-            externalWatchContainer.visibility = View.VISIBLE
-            errorContainer.visibility = View.GONE
-            isExternalWatch = true
-            externalWatchStartTime = System.currentTimeMillis()
-            watchTimeElapsed = 0
-            watchTimerTv.text = "Watch video in YouTube app..."
-            taskDescriptionTv.text = "Timer will track when you return"
-            watchHandler = Handler(Looper.getMainLooper())
-            watchRunnable = object : Runnable {
-                override fun run() {
-                    if (!isExternalWatch) return
-                    val timeAway = System.currentTimeMillis() - externalWatchStartTime
-                    val effectiveWatchTime = if (timeAway > adGracePeriodMs) timeAway - adGracePeriodMs else 0
-                    watchTimeElapsed = (effectiveWatchTime / 1000).toInt()
-                    val progress = if (watchTimeElapsed * 100 / requiredWatchTime < 100) watchTimeElapsed * 100 / requiredWatchTime else 100
-                    watchProgressBar.progress = progress
-                    if (watchTimeElapsed >= requiredWatchTime) {
-                        watchTimerTv.text = "Watch complete! Tap Claim"
-                        taskDescriptionTv.text = "Claim your ${task.rewardCoins} coins!"
-                        videoStarted = true
-                        videoEnded = true
-                        completeBtn.isEnabled = true
-                        completeBtn.text = "Claim ${task.rewardCoins} 🪙"
-                        stopWatchTimer()
-                    } else {
-                        val remaining = requiredWatchTime - watchTimeElapsed
-                        watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
-                        taskDescriptionTv.text = "Return to claim. Need $remaining more seconds"
-                        watchHandler?.postDelayed(this, 1000)
-                    }
-                }
-            }
-            watchHandler?.post(watchRunnable!!)
         }
 
         // Setup close button
