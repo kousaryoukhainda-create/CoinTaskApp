@@ -2,7 +2,10 @@ package com.cointask.user
 
 import android.animation.ValueAnimator
 import android.content.Intent
-import android.os.Bundle
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -858,8 +861,8 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             setOnClickListener {
                 // Open link in browser when clicked
                 try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(taskLink))
+                    val intent = Intent(Intent.ACTION_VIEW,
+                        Uri.parse(taskLink))
                     startActivity(intent)
                 } catch (e: Exception) {
                     Toast.makeText(this@UserDashboardActivity, "Cannot open link", Toast.LENGTH_SHORT).show()
@@ -1071,73 +1074,73 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         watchYoutubeBtn.setOnClickListener {
             val videoId = VideoProvider.YouTube.extractVideoId(videoUrl)
             if (videoId != null) {
-                try {
-                    val youtubeIntent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse("vnd.youtube:$videoId"))
-                    youtubeIntent.setPackage("com.google.android.youtube")
-                    externalWatchContainer.visibility = android.view.View.VISIBLE
-                    errorContainer.visibility = android.view.View.GONE
-                    // Start external watch timer
-                    isExternalWatch = true
-                    externalWatchStartTime = System.currentTimeMillis()
-                    watchTimeElapsed = 0
-                    watchTimerTv.text = "Watch video in YouTube app..."
-                    taskDescriptionTv.text = "Timer will track when you return"
-                    watchHandler = android.os.Handler(android.os.Looper.getMainLooper())
-                    watchRunnable = object : java.lang.Runnable {
-                        override fun run() {
-                            if (!isExternalWatch) return
-                            val timeAway = System.currentTimeMillis() - externalWatchStartTime
-                            val effectiveWatchTime = if (timeAway > adGracePeriodMs) timeAway - adGracePeriodMs else 0
-                            watchTimeElapsed = (effectiveWatchTime / 1000).toInt()
-                            val progress = if (watchTimeElapsed * 100 / requiredWatchTime < 100) watchTimeElapsed * 100 / requiredWatchTime else 100
-                            watchProgressBar.progress = progress
-                            if (watchTimeElapsed >= requiredWatchTime) {
-                                watchTimerTv.text = "Watch complete! Tap Claim"
-                                taskDescriptionTv.text = "Claim your ${task.rewardCoins} coins!"
-                                videoStarted = true
-                                videoEnded = true
-                                completeBtn.isEnabled = true
-                                completeBtn.text = "Claim ${task.rewardCoins} 🪙"
-                                stopWatchTimer()
-                            } else {
-                                val remaining = requiredWatchTime - watchTimeElapsed
-                                watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
-                                taskDescriptionTv.text = "Return to claim. Need $remaining more seconds"
-                                watchHandler?.postDelayed(this, 1000)
-                            }
+                val youtubeUrl = "https://www.youtube.com/watch?v=$videoId"
+
+                if (isYouTubeAppInstalled()) {
+                    try {
+                        val youtubeIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId"))
+                        youtubeIntent.setPackage("com.google.android.youtube")
+                        startExternalWatchTimer(videoId)
+                        startActivity(youtubeIntent)
+                    } catch (e: Exception) {
+                        try {
+                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(youtubeUrl))
+                            startExternalWatchTimer(videoId)
+                            startActivity(browserIntent)
+                        } catch (e2: Exception) {
+                            Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    watchHandler?.post(watchRunnable!!)
-                    startActivity(youtubeIntent)
-                } catch (e: android.content.ActivityNotFoundException) {
+                } else {
                     try {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://www.youtube.com/watch?v=$videoId"))
-                        externalWatchContainer.visibility = android.view.View.VISIBLE
-                        errorContainer.visibility = android.view.View.GONE
-                        isExternalWatch = true
-                        externalWatchStartTime = System.currentTimeMillis()
-                        startActivity(intent)
-                    } catch (e2: Exception) {
-                        Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    try {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://www.youtube.com/watch?v=$videoId"))
-                        externalWatchContainer.visibility = android.view.View.VISIBLE
-                        errorContainer.visibility = android.view.View.GONE
-                        isExternalWatch = true
-                        externalWatchStartTime = System.currentTimeMillis()
-                        startActivity(intent)
-                    } catch (e2: Exception) {
+                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(youtubeUrl))
+                        startExternalWatchTimer(videoId)
+                        startActivity(browserIntent)
+                    } catch (e: ActivityNotFoundException) {
+                        Toast.makeText(this@UserDashboardActivity, "No app available to open YouTube videos", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
                         Toast.makeText(this@UserDashboardActivity, "Cannot open video", Toast.LENGTH_SHORT).show()
                     }
                 }
             } else {
                 Toast.makeText(this@UserDashboardActivity, "Invalid video URL", Toast.LENGTH_SHORT).show()
             }
+        }
+
+        private fun startExternalWatchTimer(videoId: String) {
+            externalWatchContainer.visibility = View.VISIBLE
+            errorContainer.visibility = View.GONE
+            isExternalWatch = true
+            externalWatchStartTime = System.currentTimeMillis()
+            watchTimeElapsed = 0
+            watchTimerTv.text = "Watch video in YouTube app..."
+            taskDescriptionTv.text = "Timer will track when you return"
+            watchHandler = Handler(Looper.getMainLooper())
+            watchRunnable = object : Runnable {
+                override fun run() {
+                    if (!isExternalWatch) return
+                    val timeAway = System.currentTimeMillis() - externalWatchStartTime
+                    val effectiveWatchTime = if (timeAway > adGracePeriodMs) timeAway - adGracePeriodMs else 0
+                    watchTimeElapsed = (effectiveWatchTime / 1000).toInt()
+                    val progress = if (watchTimeElapsed * 100 / requiredWatchTime < 100) watchTimeElapsed * 100 / requiredWatchTime else 100
+                    watchProgressBar.progress = progress
+                    if (watchTimeElapsed >= requiredWatchTime) {
+                        watchTimerTv.text = "Watch complete! Tap Claim"
+                        taskDescriptionTv.text = "Claim your ${task.rewardCoins} coins!"
+                        videoStarted = true
+                        videoEnded = true
+                        completeBtn.isEnabled = true
+                        completeBtn.text = "Claim ${task.rewardCoins} 🪙"
+                        stopWatchTimer()
+                    } else {
+                        val remaining = requiredWatchTime - watchTimeElapsed
+                        watchTimerTv.text = "Elapsed: ${watchTimeElapsed}s / ${requiredWatchTime}s"
+                        taskDescriptionTv.text = "Return to claim. Need $remaining more seconds"
+                        watchHandler?.postDelayed(this, 1000)
+                    }
+                }
+            }
+            watchHandler?.post(watchRunnable!!)
         }
 
         // Setup close button
@@ -1200,8 +1203,8 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             setPadding(0, 20, 0, 20)
             setOnClickListener {
                 try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(websiteUrl))
+                    val intent = Intent(Intent.ACTION_VIEW,
+                        Uri.parse(websiteUrl))
                     startActivity(intent)
                 } catch (e: Exception) {
                     Toast.makeText(this@UserDashboardActivity, "Cannot open website", Toast.LENGTH_SHORT).show()
@@ -1284,8 +1287,8 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             setPadding(0, 15, 0, 15)
             setOnClickListener {
                 try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(socialLink))
+                    val intent = Intent(Intent.ACTION_VIEW,
+                        Uri.parse(socialLink))
                     startActivity(intent)
                 } catch (e: Exception) {
                     Toast.makeText(this@UserDashboardActivity, "Cannot open link", Toast.LENGTH_SHORT).show()
@@ -1499,5 +1502,38 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
             }
             .setNegativeButton("Stay", null)
             .show()
+    }
+
+    private fun isYouTubeAppInstalled(): Boolean {
+        return try {
+            packageManager.getPackageInfo("com.google.android.youtube", 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    private fun openYouTubeVideo(videoId: String) {
+        val youtubeUrl = "https://www.youtube.com/watch?v=$videoId"
+
+        if (isYouTubeAppInstalled()) {
+            try {
+                val youtubeIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId"))
+                youtubeIntent.setPackage("com.google.android.youtube")
+                startActivity(youtubeIntent)
+                return
+            } catch (e: Exception) {
+                // Fall through to browser
+            }
+        }
+
+        try {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(youtubeUrl))
+            startActivity(browserIntent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "No app available to open YouTube videos", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Cannot open video", Toast.LENGTH_SHORT).show()
+        }
     }
 }
