@@ -1014,10 +1014,10 @@ class UserDashboardActivity : AppCompatActivity(), TaskAdapter.TaskClickListener
         var videoError = false
         var videoEnded = false
         var currentErrorCode: String? = null
+        val adGracePeriodMs: Long = 7000
         var watchTimeElapsed = 0
         var requiredWatchTime = task.completionTimeSeconds
         var externalWatchStartTime: Long = 0
-        val adGracePeriodMs: Long = 7000
         var watchHandler: android.os.Handler? = null
         var watchRunnable: java.lang.Runnable? = null
 
